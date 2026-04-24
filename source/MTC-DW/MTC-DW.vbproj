@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <StartupObject>Program</StartupObject>
+    <RootNamespace>MTCDW</RootNamespace>
+    <AssemblyName>MTC-DW</AssemblyName>
+    <FileAlignment>512</FileAlignment>
+    <MyType>WindowsForms</MyType>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <Deterministic>true</Deterministic>
+    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>1</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>1</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Configuration" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json">
+      <Version>13.0.3</Version>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="My Project\AssemblyInfo.vb" />
+    <Compile Include="Program.vb" />
+    <Compile Include="AppState.vb" />
+    <Compile Include="Models\AppConfig.vb" />
+    <Compile Include="Models\JobDefinition.vb" />
+    <Compile Include="Models\JobHistory.vb" />
+    <Compile Include="Models\Deputy\DpTimesheet.vb" />
+    <Compile Include="Models\Deputy\DpOperationalUnit.vb" />
+    <Compile Include="Models\Deputy\DpWorkType.vb" />
+    <Compile Include="Models\Deputy\DpEmployee.vb" />
+    <Compile Include="Services\DatabaseService.vb" />
+    <Compile Include="Services\DeputyApiService.vb" />
+    <Compile Include="Services\DeputySyncService.vb" />
+    <Compile Include="Services\SchedulerService.vb" />
+    <Compile Include="Forms\MainForm.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\MainForm.Designer.vb">
+      <DependentUpon>MainForm.vb</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\DashboardPanel.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Forms\DashboardPanel.Designer.vb">
+      <DependentUpon>DashboardPanel.vb</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\JobsPanel.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Forms\JobsPanel.Designer.vb">
+      <DependentUpon>JobsPanel.vb</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\JobEditForm.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\JobEditForm.Designer.vb">
+      <DependentUpon>JobEditForm.vb</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\DeputyPanel.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Forms\DeputyPanel.Designer.vb">
+      <DependentUpon>DeputyPanel.vb</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\SettingsPanel.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Forms\SettingsPanel.Designer.vb">
+      <DependentUpon>SettingsPanel.vb</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\LogsPanel.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Forms\LogsPanel.Designer.vb">
+      <DependentUpon>LogsPanel.vb</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="app.config" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
+</Project>
