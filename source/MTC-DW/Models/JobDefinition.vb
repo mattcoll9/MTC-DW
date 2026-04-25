@@ -21,8 +21,8 @@ Namespace Models
                 Select Case ScheduleType
                     Case "Backfill"
                         If Not SyncFromDate.HasValue OrElse Not SyncToDate.HasValue Then Return "Backfill"
-                        Dim cursor = If(SyncCursor, SyncFromDate.Value)
-                        Dim pct = (cursor - SyncFromDate.Value).TotalDays / Math.Max(1, (SyncToDate.Value - SyncFromDate.Value).TotalDays) * 100
+                        Dim cursor As Date = If(SyncCursor.HasValue, SyncCursor.Value, SyncFromDate.Value)
+                        Dim pct As Double = (cursor - SyncFromDate.Value).TotalDays / Math.Max(1, (SyncToDate.Value - SyncFromDate.Value).TotalDays) * 100
                         Return $"Backfill {pct:F0}%"
                     Case "Once" : Return "Once"
                     Case Else

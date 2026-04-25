@@ -21,7 +21,7 @@ Public Class DeputyPanel
                 Case 0 : LoadTimesheets()
                 Case 1 : LoadTable(dgEmployees, "deputy.Employees")
                 Case 2 : LoadTable(dgOpUnits, "deputy.OperationalUnits")
-                Case 3 : LoadTable(dgWorkTypes, "deputy.WorkTypes")
+                Case 3 : LoadTable(dgWorkTypes, "deputy.Departments")
             End Select
         Catch ex As Exception
             MessageBox.Show($"Error loading data: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)

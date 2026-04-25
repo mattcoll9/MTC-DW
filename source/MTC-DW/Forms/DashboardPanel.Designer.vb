@@ -98,7 +98,7 @@ Partial Class DashboardPanel
         Me.grpWorkTypes.Controls.Add(Me.lblWorkTypes)
         Me.grpWorkTypes.Dock = System.Windows.Forms.DockStyle.Fill
         Me.grpWorkTypes.Name = "grpWorkTypes"
-        Me.grpWorkTypes.Text = "Work Types"
+        Me.grpWorkTypes.Text = "Rosters"
         '
         ' lblWorkTypes
         '

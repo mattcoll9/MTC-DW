@@ -14,10 +14,10 @@ Public Class DashboardPanel
         If AppState.Db Is Nothing Then Return
         Try
             Dim stats = AppState.Db.GetDashboardStats()
-            lblTimesheets.Text = stats.GetValueOrDefault("Timesheets", 0).ToString("N0")
-            lblEmployees.Text = stats.GetValueOrDefault("Employees", 0).ToString("N0")
-            lblOpUnits.Text = stats.GetValueOrDefault("OperationalUnits", 0).ToString("N0")
-            lblWorkTypes.Text = stats.GetValueOrDefault("WorkTypes", 0).ToString("N0")
+            lblTimesheets.Text = DictGet(stats, "Timesheets").ToString("N0")
+            lblEmployees.Text = DictGet(stats, "Employees").ToString("N0")
+            lblOpUnits.Text = DictGet(stats, "OperationalUnits").ToString("N0")
+            lblWorkTypes.Text = DictGet(stats, "Rosters").ToString("N0")
         Catch ex As Exception
             lblTimesheets.Text = "—"
         End Try
@@ -35,6 +35,7 @@ Public Class DashboardPanel
                 .Records = If(h.RecordsAffected.HasValue, h.RecordsAffected.Value.ToString("N0"), "—"),
                 .Error = If(String.IsNullOrEmpty(h.ErrorMessage), "", h.ErrorMessage.Substring(0, Math.Min(80, h.ErrorMessage.Length)))
             }).ToList()
+            GridColumnStore.Restore("DashboardHistory", dgHistory)
             ColourStatusRows()
         Catch ex As Exception
             ' Leave grid empty on error
@@ -44,13 +45,22 @@ Public Class DashboardPanel
     Private Sub ColourStatusRows()
         For Each row As DataGridViewRow In dgHistory.Rows
             Dim status = If(row.Cells("Status").Value?.ToString(), "")
-            row.DefaultCellStyle.BackColor = Select Case status
-                Case "Success" : Drawing.Color.FromArgb(220, 255, 220)
-                Case "Failed" : Drawing.Color.FromArgb(255, 220, 220)
-                Case "Running" : Drawing.Color.FromArgb(255, 255, 200)
-                Case Else : Drawing.Color.White
+            Select Case status
+                Case "Success" : row.DefaultCellStyle.BackColor = Drawing.Color.FromArgb(220, 255, 220)
+                Case "Failed"  : row.DefaultCellStyle.BackColor = Drawing.Color.FromArgb(255, 220, 220)
+                Case "Running" : row.DefaultCellStyle.BackColor = Drawing.Color.FromArgb(255, 255, 200)
+                Case Else      : row.DefaultCellStyle.BackColor = Drawing.Color.White
             End Select
         Next
     End Sub
+
+    Private Sub dgHistory_ColumnWidthChanged(sender As Object, e As DataGridViewColumnEventArgs) Handles dgHistory.ColumnWidthChanged
+        GridColumnStore.Save("DashboardHistory", dgHistory)
+    End Sub
+
+    Private Shared Function DictGet(d As Dictionary(Of String, Integer), key As String) As Integer
+        Dim v As Integer
+        Return If(d.TryGetValue(key, v), v, 0)
+    End Function
 
 End Class

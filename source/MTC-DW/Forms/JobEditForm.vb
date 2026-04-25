@@ -8,7 +8,7 @@ Public Class JobEditForm
         InitializeComponent()
 
         cboSource.Items.AddRange({"Deputy"})
-        cboEntity.Items.AddRange({"Timesheets", "Employees", "OperationalUnits", "WorkTypes"})
+        cboEntity.Items.AddRange({"Timesheets", "Rosters", "Employees", "OperationalUnits", "Company", "Departments"})
         cboInterval.Items.AddRange({"2", "5", "15", "60", "240", "720", "1440"})
 
         If existingJob IsNot Nothing Then
@@ -20,10 +20,10 @@ Public Class JobEditForm
             Select Case existingJob.ScheduleType
                 Case "Recurring"
                     rbRecurring.Checked = True
-                    cboInterval.Text = existingJob.IntervalMinutes?.ToString() ?? "60"
+                    cboInterval.Text = If(existingJob.IntervalMinutes?.ToString(), "60")
                 Case "Backfill"
                     rbBackfill.Checked = True
-                    cboInterval.Text = existingJob.IntervalMinutes?.ToString() ?? "2"
+                    cboInterval.Text = If(existingJob.IntervalMinutes?.ToString(), "2")
                     If existingJob.SyncFromDate.HasValue Then dtpBackfillFrom.Value = existingJob.SyncFromDate.Value
                     If existingJob.SyncToDate.HasValue Then dtpBackfillTo.Value = existingJob.SyncToDate.Value
                     nudChunkDays.Value = If(existingJob.ChunkDays.HasValue, existingJob.ChunkDays.Value, 30)
@@ -68,11 +68,11 @@ Public Class JobEditForm
         lblIntervalMin.Visible = isRecurring OrElse isBackfill
         lblIntervalHint.Visible = isBackfill
 
-        ' Backfill date range only makes sense for Timesheets
-        pnlBackfill.Visible = isBackfill AndAlso isTimesheets
-        If isBackfill AndAlso Not isTimesheets Then
+        Dim isDateFiltered = isTimesheets OrElse CStr(cboEntity.SelectedItem) = "Rosters"
+        pnlBackfill.Visible = isBackfill AndAlso isDateFiltered
+        If isBackfill AndAlso Not isDateFiltered Then
             lblBackfillNote.Visible = True
-            lblBackfillNote.Text = "Note: Backfill date range applies to Timesheets only."
+            lblBackfillNote.Text = "Note: Backfill date range applies to Timesheets and Rosters only."
         Else
             lblBackfillNote.Visible = False
         End If
@@ -118,8 +118,7 @@ Public Class JobEditForm
             Result.SyncFromDate = dtpBackfillFrom.Value.Date
             Result.SyncToDate = dtpBackfillTo.Value.Date
             Result.ChunkDays = CInt(nudChunkDays.Value)
-            ' Reset cursor so backfill restarts from the beginning if re-saved
-            If Result.Id = 0 Then Result.SyncCursor = Nothing
+            Result.SyncCursor = Nothing  ' Always reset so backfill restarts from SyncFromDate
 
         Else
             Result.ScheduleType = "Once"

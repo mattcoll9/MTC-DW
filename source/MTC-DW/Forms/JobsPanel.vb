@@ -1,11 +1,25 @@
+Imports System.Threading
 Imports MTCDW.Models
 
 Public Class JobsPanel
 
     Private _jobs As List(Of JobDefinition)
+    Private _runCts As CancellationTokenSource
+    Private _btnStop As ToolStripButton
 
     Public Sub New()
         InitializeComponent()
+
+        _btnStop = New ToolStripButton("Stop") With {
+            .Name = "btnStop",
+            .Enabled = False,
+            .ForeColor = Drawing.Color.DarkRed,
+            .Font = New Drawing.Font("Segoe UI", 9, Drawing.FontStyle.Bold)
+        }
+        Dim sepStop As New ToolStripSeparator()
+        tsJobs.Items.Add(sepStop)
+        tsJobs.Items.Add(_btnStop)
+        AddHandler _btnStop.Click, AddressOf btnStop_Click
     End Sub
 
     Public Sub RefreshJobs()
@@ -22,6 +36,7 @@ Public Class JobsPanel
                 .LastRun = If(j.LastRunTime.HasValue, j.LastRunTime.Value.ToString("dd/MM HH:mm"), "Never"),
                 .Enabled = If(j.IsEnabled, "Yes", "No")
             }).ToList()
+            GridColumnStore.Restore("JobsJobs", dgJobs)
             RefreshHistory()
         Catch ex As Exception
             MessageBox.Show($"Error loading jobs: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
@@ -40,6 +55,7 @@ Public Class JobsPanel
                 .Records = If(h.RecordsAffected.HasValue, h.RecordsAffected.Value.ToString("N0"), "—"),
                 .Error = If(String.IsNullOrEmpty(h.ErrorMessage), "", h.ErrorMessage.Substring(0, Math.Min(120, h.ErrorMessage.Length)))
             }).ToList()
+            GridColumnStore.Restore("JobsHistory", dgHistory)
             ColourRows(dgHistory)
         Catch
         End Try
@@ -61,11 +77,11 @@ Public Class JobsPanel
     Private Sub ColourRows(dgv As DataGridView)
         For Each row As DataGridViewRow In dgv.Rows
             Dim status = If(row.Cells("Status")?.Value?.ToString(), "")
-            row.DefaultCellStyle.BackColor = Select Case status
-                Case "Success" : Drawing.Color.FromArgb(220, 255, 220)
-                Case "Failed" : Drawing.Color.FromArgb(255, 220, 220)
-                Case "Running" : Drawing.Color.FromArgb(255, 255, 200)
-                Case Else : Drawing.Color.White
+            Select Case status
+                Case "Success" : row.DefaultCellStyle.BackColor = Drawing.Color.FromArgb(220, 255, 220)
+                Case "Failed"  : row.DefaultCellStyle.BackColor = Drawing.Color.FromArgb(255, 220, 220)
+                Case "Running" : row.DefaultCellStyle.BackColor = Drawing.Color.FromArgb(255, 255, 200)
+                Case Else      : row.DefaultCellStyle.BackColor = Drawing.Color.White
             End Select
         Next
     End Sub
@@ -105,15 +121,25 @@ Public Class JobsPanel
     Private Async Sub btnRunNow_Click(sender As Object, e As EventArgs) Handles btnRunNow.Click
         Dim job = SelectedJob()
         If job Is Nothing Then Return
+        _runCts = New CancellationTokenSource()
         btnRunNow.Enabled = False
+        _btnStop.Enabled = True
         Try
-            Await AppState.Scheduler.RunJobNow(job)
+            Await AppState.Scheduler.RunJobNow(job, _runCts.Token)
             RefreshJobs()
         Catch ex As Exception
             MessageBox.Show($"Job failed: {ex.Message}", "Run Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
         Finally
             btnRunNow.Enabled = True
+            _btnStop.Enabled = False
+            _runCts?.Dispose()
+            _runCts = Nothing
         End Try
+    End Sub
+
+    Private Sub btnStop_Click(sender As Object, e As EventArgs)
+        _runCts?.Cancel()
+        _btnStop.Enabled = False
     End Sub
 
     Private Sub btnRefresh_Click(sender As Object, e As EventArgs) Handles btnRefresh.Click
@@ -122,6 +148,14 @@ Public Class JobsPanel
 
     Private Sub dgJobs_SelectionChanged(sender As Object, e As EventArgs) Handles dgJobs.SelectionChanged
         RefreshHistory()
+    End Sub
+
+    Private Sub dgJobs_ColumnWidthChanged(sender As Object, e As DataGridViewColumnEventArgs) Handles dgJobs.ColumnWidthChanged
+        GridColumnStore.Save("JobsJobs", dgJobs)
+    End Sub
+
+    Private Sub dgHistory_ColumnWidthChanged(sender As Object, e As DataGridViewColumnEventArgs) Handles dgHistory.ColumnWidthChanged
+        GridColumnStore.Save("JobsHistory", dgHistory)
     End Sub
 
 End Class

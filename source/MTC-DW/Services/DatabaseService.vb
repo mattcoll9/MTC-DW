@@ -38,102 +38,41 @@ Namespace Services
         Public Sub EnsureSchema()
             Dim statements As String() = {
                 "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'deputy') EXEC('CREATE SCHEMA deputy')",
-
-                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'dbo.Config') AND type = 'U')
-                 CREATE TABLE dbo.Config (
-                     ConfigKey   VARCHAR(100)  NOT NULL PRIMARY KEY,
-                     ConfigValue NVARCHAR(MAX) NULL,
-                     UpdatedAt   DATETIME2     NOT NULL DEFAULT GETDATE()
-                 )",
-
-                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'dbo.Jobs') AND type = 'U')
-                 CREATE TABLE dbo.Jobs (
-                     Id              INT          NOT NULL IDENTITY(1,1) PRIMARY KEY,
-                     JobName         VARCHAR(100) NOT NULL,
-                     SourceType      VARCHAR(50)  NOT NULL,
-                     EntityType      VARCHAR(50)  NOT NULL,
-                     ScheduleType    VARCHAR(20)  NOT NULL,
-                     IntervalMinutes INT          NULL,
-                     NextRunTime     DATETIME2    NULL,
-                     LastRunTime     DATETIME2    NULL,
-                     IsEnabled       BIT          NOT NULL DEFAULT 1,
-                     SyncFromDate    DATE         NULL,
-                     SyncToDate      DATE         NULL,
-                     ChunkDays       INT          NULL,
-                     SyncCursor      DATE         NULL
-                 )",
-
-                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.Jobs') AND name='SyncFromDate')
-                 ALTER TABLE dbo.Jobs ADD SyncFromDate DATE NULL",
-
-                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.Jobs') AND name='SyncToDate')
-                 ALTER TABLE dbo.Jobs ADD SyncToDate DATE NULL",
-
-                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.Jobs') AND name='ChunkDays')
-                 ALTER TABLE dbo.Jobs ADD ChunkDays INT NULL",
-
-                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.Jobs') AND name='SyncCursor')
-                 ALTER TABLE dbo.Jobs ADD SyncCursor DATE NULL",
-
-                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'dbo.JobHistory') AND type = 'U')
-                 CREATE TABLE dbo.JobHistory (
-                     Id              INT           NOT NULL IDENTITY(1,1) PRIMARY KEY,
-                     JobId           INT           NOT NULL REFERENCES dbo.Jobs(Id),
-                     StartedAt       DATETIME2     NOT NULL,
-                     CompletedAt     DATETIME2     NULL,
-                     Status          VARCHAR(20)   NOT NULL,
-                     RecordsAffected INT           NULL,
-                     ErrorMessage    NVARCHAR(MAX) NULL
-                 )",
-
-                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'deputy.OperationalUnits') AND type = 'U')
-                 CREATE TABLE deputy.OperationalUnits (
-                     Id       BIGINT        NOT NULL PRIMARY KEY,
-                     Code     VARCHAR(50)   NULL,
-                     UnitName NVARCHAR(200) NULL,
-                     IsActive BIT           NOT NULL DEFAULT 1,
-                     SyncedAt DATETIME2     NOT NULL DEFAULT GETDATE()
-                 )",
-
-                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'deputy.WorkTypes') AND type = 'U')
-                 CREATE TABLE deputy.WorkTypes (
-                     Id           BIGINT        NOT NULL PRIMARY KEY,
-                     Code         VARCHAR(50)   NULL,
-                     WorkTypeName NVARCHAR(200) NULL,
-                     IsActive     BIT           NOT NULL DEFAULT 1,
-                     SyncedAt     DATETIME2     NOT NULL DEFAULT GETDATE()
-                 )",
-
-                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'deputy.Employees') AND type = 'U')
-                 CREATE TABLE deputy.Employees (
-                     Id          BIGINT        NOT NULL PRIMARY KEY,
-                     DisplayName NVARCHAR(200) NULL,
-                     RoleTitle   NVARCHAR(200) NULL,
-                     YearOfBirth SMALLINT      NULL,
-                     StartYear   SMALLINT      NULL,
-                     IsActive    BIT           NOT NULL DEFAULT 1,
-                     SyncedAt    DATETIME2     NOT NULL DEFAULT GETDATE()
-                 )",
-
-                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'deputy.Timesheets') AND type = 'U')
-                 CREATE TABLE deputy.Timesheets (
-                     Id                BIGINT        NOT NULL PRIMARY KEY,
-                     TimesheetDate     DATE          NULL,
-                     StartTime         DATETIME2     NULL,
-                     EndTime           DATETIME2     NULL,
-                     TotalMinutes      DECIMAL(10,2) NULL,
-                     Cost              DECIMAL(18,2) NULL,
-                     IsApproved        BIT           NOT NULL DEFAULT 0,
-                     EmployeeId        BIGINT        NULL,
-                     OperationalUnitId BIGINT        NULL,
-                     WorkTypeId        BIGINT        NULL,
-                     SyncedAt          DATETIME2     NOT NULL DEFAULT GETDATE()
-                 )"
+                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'dbo.Config') AND type = 'U') CREATE TABLE dbo.Config (ConfigKey VARCHAR(100) NOT NULL PRIMARY KEY, ConfigValue NVARCHAR(MAX) NULL, UpdatedAt DATETIME2 NOT NULL DEFAULT GETDATE())",
+                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'dbo.Jobs') AND type = 'U') CREATE TABLE dbo.Jobs (Id INT NOT NULL IDENTITY(1,1) PRIMARY KEY, JobName VARCHAR(100) NOT NULL, SourceType VARCHAR(50) NOT NULL, EntityType VARCHAR(50) NOT NULL, ScheduleType VARCHAR(20) NOT NULL, IntervalMinutes INT NULL, NextRunTime DATETIME2 NULL, LastRunTime DATETIME2 NULL, IsEnabled BIT NOT NULL DEFAULT 1, SyncFromDate DATE NULL, SyncToDate DATE NULL, ChunkDays INT NULL, SyncCursor DATE NULL)",
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.Jobs') AND name='SyncFromDate') ALTER TABLE dbo.Jobs ADD SyncFromDate DATE NULL",
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.Jobs') AND name='SyncToDate') ALTER TABLE dbo.Jobs ADD SyncToDate DATE NULL",
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.Jobs') AND name='ChunkDays') ALTER TABLE dbo.Jobs ADD ChunkDays INT NULL",
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.Jobs') AND name='SyncCursor') ALTER TABLE dbo.Jobs ADD SyncCursor DATE NULL",
+                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'dbo.JobHistory') AND type = 'U') CREATE TABLE dbo.JobHistory (Id INT NOT NULL IDENTITY(1,1) PRIMARY KEY, JobId INT NOT NULL REFERENCES dbo.Jobs(Id), StartedAt DATETIME2 NOT NULL, CompletedAt DATETIME2 NULL, Status VARCHAR(20) NOT NULL, RecordsAffected INT NULL, ErrorMessage NVARCHAR(MAX) NULL)",
+                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'deputy.OperationalUnits') AND type = 'U') CREATE TABLE deputy.OperationalUnits (Id BIGINT NOT NULL PRIMARY KEY, UnitName NVARCHAR(200) NULL, IsActive BIT NOT NULL DEFAULT 1, CompanyId BIGINT NULL, PayrollExportName VARCHAR(50) NULL, Colour VARCHAR(20) NULL, CompanyCode VARCHAR(20) NULL, CompanyName NVARCHAR(200) NULL, RosterSortOrder INT NULL, ShowOnRoster BIT NULL, ParentOperationalUnit BIGINT NULL, SyncedAt DATETIME2 NOT NULL DEFAULT GETDATE())",
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'deputy.OperationalUnits') AND name='CompanyId') ALTER TABLE deputy.OperationalUnits ADD CompanyId BIGINT NULL",
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'deputy.OperationalUnits') AND name='CompanyCode') ALTER TABLE deputy.OperationalUnits ADD CompanyCode VARCHAR(20) NULL",
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'deputy.OperationalUnits') AND name='CompanyName') ALTER TABLE deputy.OperationalUnits ADD CompanyName NVARCHAR(200) NULL",
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'deputy.OperationalUnits') AND name='PayrollExportName') ALTER TABLE deputy.OperationalUnits ADD PayrollExportName VARCHAR(50) NULL",
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'deputy.OperationalUnits') AND name='Colour') ALTER TABLE deputy.OperationalUnits ADD Colour VARCHAR(20) NULL",
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'deputy.OperationalUnits') AND name='RosterSortOrder') ALTER TABLE deputy.OperationalUnits ADD RosterSortOrder INT NULL",
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'deputy.OperationalUnits') AND name='ShowOnRoster') ALTER TABLE deputy.OperationalUnits ADD ShowOnRoster BIT NULL",
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'deputy.OperationalUnits') AND name='ParentOperationalUnit') ALTER TABLE deputy.OperationalUnits ADD ParentOperationalUnit BIGINT NULL",
+                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'deputy.Departments') AND type = 'U') CREATE TABLE deputy.Departments (Id BIGINT NOT NULL PRIMARY KEY, DepartmentName NVARCHAR(200) NULL, IsActive BIT NOT NULL DEFAULT 1, SyncedAt DATETIME2 NOT NULL DEFAULT GETDATE())",
+                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'deputy.Employees') AND type = 'U') CREATE TABLE deputy.Employees (Id BIGINT NOT NULL PRIMARY KEY, FirstName NVARCHAR(100) NULL, LastName NVARCHAR(100) NULL, DisplayName NVARCHAR(200) NULL, RoleTitle NVARCHAR(200) NULL, CompanyId BIGINT NULL, YearOfBirth SMALLINT NULL, StartDate DATE NULL, IsActive BIT NOT NULL DEFAULT 1, SyncedAt DATETIME2 NOT NULL DEFAULT GETDATE())",
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'deputy.Employees') AND name='FirstName') ALTER TABLE deputy.Employees ADD FirstName NVARCHAR(100) NULL",
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'deputy.Employees') AND name='LastName') ALTER TABLE deputy.Employees ADD LastName NVARCHAR(100) NULL",
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'deputy.Employees') AND name='CompanyId') ALTER TABLE deputy.Employees ADD CompanyId BIGINT NULL",
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'deputy.Employees') AND name='StartDate') ALTER TABLE deputy.Employees ADD StartDate DATE NULL",
+                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'deputy.Company') AND type = 'U') CREATE TABLE deputy.Company (Id BIGINT NOT NULL PRIMARY KEY, CompanyCode VARCHAR(20) NULL, CompanyName NVARCHAR(200) NULL, TradingName NVARCHAR(200) NULL, IsWorkplace BIT NOT NULL DEFAULT 1, IsPayrollEntity BIT NOT NULL DEFAULT 0, IsActive BIT NOT NULL DEFAULT 1, SyncedAt DATETIME2 NOT NULL DEFAULT GETDATE())",
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'deputy.Company') AND name='TradingName') ALTER TABLE deputy.Company ADD TradingName NVARCHAR(200) NULL",
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'deputy.Company') AND name='IsWorkplace') ALTER TABLE deputy.Company ADD IsWorkplace BIT NOT NULL DEFAULT 1",
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'deputy.Company') AND name='IsPayrollEntity') ALTER TABLE deputy.Company ADD IsPayrollEntity BIT NOT NULL DEFAULT 0",
+                "IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'deputy.Timesheets') AND name='TotalMinutes') DROP TABLE deputy.Timesheets",
+                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'deputy.Timesheets') AND type = 'U') CREATE TABLE deputy.Timesheets (Id BIGINT NOT NULL PRIMARY KEY, EmployeeId BIGINT NULL, OperationalUnitId BIGINT NULL, RosterId BIGINT NULL, TimesheetDate DATE NULL, StartTime DATETIME2 NULL, EndTime DATETIME2 NULL, MealbreakMinutes DECIMAL(5,2) NULL, TotalHours DECIMAL(6,2) NULL, TotalHoursInv DECIMAL(6,2) NULL, Cost DECIMAL(18,4) NULL, OnCost DECIMAL(18,4) NULL, IsApproved BIT NOT NULL DEFAULT 0, IsPayRuleApproved BIT NOT NULL DEFAULT 0, IsLeave BIT NOT NULL DEFAULT 0, IsInProgress BIT NOT NULL DEFAULT 0, Discarded BIT NOT NULL DEFAULT 0, ReviewState INT NULL, Modified DATETIME2 NULL, SyncedAt DATETIME2 NOT NULL DEFAULT GETDATE())",
+                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'deputy.Rosters') AND type = 'U') CREATE TABLE deputy.Rosters (Id BIGINT NOT NULL PRIMARY KEY, EmployeeId BIGINT NULL, OperationalUnitId BIGINT NULL, TimesheetId BIGINT NULL, RosterDate DATE NULL, StartTime DATETIME2 NULL, EndTime DATETIME2 NULL, MealbreakMinutes DECIMAL(5,2) NULL, TotalHours DECIMAL(6,2) NULL, Cost DECIMAL(18,4) NULL, OnCost DECIMAL(18,4) NULL, Published BIT NOT NULL DEFAULT 0, IsOpen BIT NOT NULL DEFAULT 0, Modified DATETIME2 NULL, SyncedAt DATETIME2 NOT NULL DEFAULT GETDATE())",
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'deputy.Rosters') AND name='MealbreakMinutes') ALTER TABLE deputy.Rosters ADD MealbreakMinutes DECIMAL(5,2) NULL"
             }
 
             Using conn = GetConnection()
-                For Each sql In statements
-                    Using cmd As New SqlCommand(sql, conn)
+                For Each stmt As String In statements
+                    Using cmd As New SqlCommand(stmt, conn)
                         cmd.CommandTimeout = 30
                         cmd.ExecuteNonQuery()
                     End Using
@@ -162,6 +101,15 @@ Namespace Services
                     "WHEN NOT MATCHED THEN INSERT (ConfigKey, ConfigValue) VALUES (s.ConfigKey, s.ConfigValue);", conn)
                     cmd.Parameters.AddWithValue("@k", key)
                     cmd.Parameters.AddWithValue("@v", If(value Is Nothing, CObj(DBNull.Value), value))
+                    cmd.ExecuteNonQuery()
+                End Using
+            End Using
+        End Sub
+
+        Public Sub DeleteConfigValue(key As String)
+            Using conn = GetConnection()
+                Using cmd As New SqlCommand("DELETE FROM dbo.Config WHERE ConfigKey = @k", conn)
+                    cmd.Parameters.AddWithValue("@k", key)
                     cmd.ExecuteNonQuery()
                 End Using
             End Using
@@ -353,17 +301,26 @@ Namespace Services
             End Using
         End Sub
 
-        Public Function GetJobHistory(Optional jobId As Integer = 0, Optional maxRows As Integer = 200) As List(Of JobHistory)
+        Public Function GetJobHistory(Optional jobId As Integer = 0, Optional maxRows As Integer = 200,
+                                      Optional fromDate As Date? = Nothing, Optional toDate As Date? = Nothing,
+                                      Optional statusFilter As String = Nothing) As List(Of JobHistory)
             Dim result As New List(Of JobHistory)
-            Dim where_ = If(jobId > 0, "AND h.JobId = @jid ", "")
+            Dim where_ = "WHERE 1=1 "
+            If jobId > 0 Then where_ &= "AND h.JobId = @jid "
+            If fromDate.HasValue Then where_ &= "AND h.StartedAt >= @from "
+            If toDate.HasValue Then where_ &= "AND h.StartedAt < @to "
+            If Not String.IsNullOrEmpty(statusFilter) Then where_ &= "AND h.Status = @status "
             Using conn = GetConnection()
                 Using cmd As New SqlCommand(
                     "SELECT TOP (@max) h.Id,h.JobId,j.JobName,h.StartedAt,h.CompletedAt," &
                     "h.Status,h.RecordsAffected,h.ErrorMessage " &
                     "FROM dbo.JobHistory h JOIN dbo.Jobs j ON h.JobId=j.Id " &
-                    "WHERE 1=1 " & where_ & "ORDER BY h.StartedAt DESC", conn)
+                    where_ & "ORDER BY h.StartedAt DESC", conn)
                     cmd.Parameters.AddWithValue("@max", maxRows)
                     If jobId > 0 Then cmd.Parameters.AddWithValue("@jid", jobId)
+                    If fromDate.HasValue Then cmd.Parameters.AddWithValue("@from", fromDate.Value)
+                    If toDate.HasValue Then cmd.Parameters.AddWithValue("@to", toDate.Value.AddDays(1))
+                    If Not String.IsNullOrEmpty(statusFilter) Then cmd.Parameters.AddWithValue("@status", statusFilter)
                     Using rdr = cmd.ExecuteReader()
                         While rdr.Read()
                             result.Add(New JobHistory With {
@@ -388,13 +345,12 @@ Namespace Services
         Public Function GetDeputyTimesheets(fromDate As Date, toDate As Date) As DataTable
             Using conn = GetConnection()
                 Using da As New SqlDataAdapter(
-                    "SELECT t.Id, t.TimesheetDate, t.StartTime, t.EndTime, t.TotalMinutes, t.Cost, " &
-                    "t.IsApproved, e.DisplayName AS Employee, " &
-                    "u.UnitName AS OperationalUnit, w.WorkTypeName AS WorkType " &
+                    "SELECT t.Id, t.TimesheetDate, t.StartTime, t.EndTime, t.TotalHours, t.MealbreakMinutes, " &
+                    "t.Cost, t.OnCost, t.IsApproved, t.IsLeave, t.IsInProgress, " &
+                    "e.DisplayName AS Employee, u.UnitName AS OperationalUnit " &
                     "FROM deputy.Timesheets t " &
                     "LEFT JOIN deputy.Employees e ON t.EmployeeId = e.Id " &
                     "LEFT JOIN deputy.OperationalUnits u ON t.OperationalUnitId = u.Id " &
-                    "LEFT JOIN deputy.WorkTypes w ON t.WorkTypeId = w.Id " &
                     "WHERE t.TimesheetDate BETWEEN @from AND @to " &
                     "ORDER BY t.TimesheetDate DESC, t.StartTime", conn)
                     da.SelectCommand.Parameters.AddWithValue("@from", fromDate)
@@ -407,7 +363,7 @@ Namespace Services
         End Function
 
         Public Function GetDeputyTable(tableName As String) As DataTable
-            Dim allowed As New HashSet(Of String)({"deputy.Employees", "deputy.OperationalUnits", "deputy.WorkTypes"})
+            Dim allowed As New HashSet(Of String)({"deputy.Employees", "deputy.OperationalUnits", "deputy.Departments", "deputy.Company", "deputy.Rosters"})
             If Not allowed.Contains(tableName) Then Throw New ArgumentException("Invalid table name")
             Using conn = GetConnection()
                 Using da As New SqlDataAdapter($"SELECT * FROM {tableName} ORDER BY Id", conn)
@@ -422,9 +378,10 @@ Namespace Services
             Dim stats As New Dictionary(Of String, Integer)
             Dim queries As New Dictionary(Of String, String) From {
                 {"Timesheets", "SELECT COUNT(*) FROM deputy.Timesheets"},
+                {"Rosters", "SELECT COUNT(*) FROM deputy.Rosters"},
                 {"Employees", "SELECT COUNT(*) FROM deputy.Employees"},
                 {"OperationalUnits", "SELECT COUNT(*) FROM deputy.OperationalUnits"},
-                {"WorkTypes", "SELECT COUNT(*) FROM deputy.WorkTypes"}
+                {"Company", "SELECT COUNT(*) FROM deputy.Company"}
             }
             Using conn = GetConnection()
                 For Each kv In queries

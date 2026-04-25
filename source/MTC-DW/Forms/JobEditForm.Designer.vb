@@ -50,7 +50,7 @@ Partial Class JobEditForm
         Me.tlp.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 120.0!))
         Me.tlp.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
         Me.tlp.RowCount = 9
-        For i = 0 To 8
+        For i As Integer = 0 To 8
             Me.tlp.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 34.0!))
         Next
         Me.tlp.Controls.Add(Me.lblName, 0, 0)
@@ -79,19 +79,17 @@ Partial Class JobEditForm
         '
         ' Standard labels
         '
-        For Each pair In {
-            New With {.Lbl = Me.lblName, .T = "Job Name:"},
-            New With {.Lbl = Me.lblSource, .T = "Source:"},
-            New With {.Lbl = Me.lblEntity, .T = "Entity:"},
-            New With {.Lbl = Me.lblSchedule, .T = "Schedule:"},
-            New With {.Lbl = Me.lblInterval, .T = "Interval (min):"},
-            New With {.Lbl = Me.lblNextRun, .T = "First Run:"},
-            New With {.Lbl = Me.lblEnabled, .T = "Enabled:"}
-        }
-            pair.Lbl.Text = pair.T
-            pair.Lbl.TextAlign = System.Drawing.ContentAlignment.MiddleRight
-            pair.Lbl.Dock = System.Windows.Forms.DockStyle.Fill
+        For Each lbl As System.Windows.Forms.Label In {Me.lblName, Me.lblSource, Me.lblEntity, Me.lblSchedule, Me.lblInterval, Me.lblNextRun, Me.lblEnabled}
+            lbl.TextAlign = System.Drawing.ContentAlignment.MiddleRight
+            lbl.Dock = System.Windows.Forms.DockStyle.Fill
         Next
+        Me.lblName.Text = "Job Name:"
+        Me.lblSource.Text = "Source:"
+        Me.lblEntity.Text = "Entity:"
+        Me.lblSchedule.Text = "Schedule:"
+        Me.lblInterval.Text = "Interval (min):"
+        Me.lblNextRun.Text = "First Run:"
+        Me.lblEnabled.Text = "Enabled:"
         '
         ' txtName
         '
@@ -100,7 +98,7 @@ Partial Class JobEditForm
         '
         ' cboSource / cboEntity / cboInterval
         '
-        For Each cbo In {Me.cboSource, Me.cboEntity, Me.cboInterval}
+        For Each cbo As System.Windows.Forms.ComboBox In {Me.cboSource, Me.cboEntity, Me.cboInterval}
             cbo.Dock = System.Windows.Forms.DockStyle.Fill
             cbo.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDown
         Next

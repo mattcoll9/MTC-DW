@@ -12,6 +12,12 @@ Public Class MainForm
 
     Private Sub MainForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Text = "MTC Data Warehouse"
+        Dim lblVersion As New ToolStripStatusLabel() With {
+            .Text = $"v{Application.ProductVersion}",
+            .Alignment = ToolStripItemAlignment.Right,
+            .ForeColor = Drawing.Color.Gray
+        }
+        statusStrip.Items.Add(lblVersion)
         InitNavTree()
 
         Dim connStr = ConfigurationManager.ConnectionStrings("MTCDW")?.ConnectionString
@@ -39,6 +45,14 @@ Public Class MainForm
                             MessageBoxButtons.OK, MessageBoxIcon.Error)
             Return
         End Try
+
+        AppState.Activity = Sub(msg)
+                                If InvokeRequired Then
+                                    BeginInvoke(Sub() lblActivity.Text = msg)
+                                Else
+                                    lblActivity.Text = msg
+                                End If
+                            End Sub
 
         AppState.Scheduler = New SchedulerService(AppState.Db)
         AddHandler AppState.Scheduler.JobStarted, AddressOf OnJobStarted
@@ -120,6 +134,7 @@ Public Class MainForm
             Return
         End If
         lblLastRun.Text = $"Running: {e.JobName}"
+        lblActivity.Text = ""
     End Sub
 
     Private Sub OnJobCompleted(sender As Object, e As SchedulerService.JobEventArgs)
@@ -127,7 +142,8 @@ Public Class MainForm
             Invoke(Sub() OnJobCompleted(sender, e))
             Return
         End If
-        lblLastRun.Text = $"Last: {e.JobName} OK ({e.RecordsAffected} rows) at {DateTime.Now:HH:mm}"
+        lblLastRun.Text = $"Last: {e.JobName} — {e.RecordsAffected} rows at {DateTime.Now:HH:mm}"
+        lblActivity.Text = ""
         If _dashboard IsNot Nothing AndAlso _dashboard.Visible Then _dashboard.Refresh()
         If _logs IsNot Nothing AndAlso _logs.Visible Then _logs.RefreshLogs()
         If _jobs IsNot Nothing AndAlso _jobs.Visible Then _jobs.RefreshJobs()
@@ -139,6 +155,7 @@ Public Class MainForm
             Return
         End If
         lblLastRun.Text = $"Last: {e.JobName} FAILED at {DateTime.Now:HH:mm}"
+        lblActivity.Text = ""
         If _logs IsNot Nothing AndAlso _logs.Visible Then _logs.RefreshLogs()
         If _jobs IsNot Nothing AndAlso _jobs.Visible Then _jobs.RefreshJobs()
     End Sub

@@ -22,6 +22,7 @@ Partial Class MainForm
         Me.statusStrip = New System.Windows.Forms.StatusStrip()
         Me.lblScheduler = New System.Windows.Forms.ToolStripStatusLabel()
         Me.lblLastRun = New System.Windows.Forms.ToolStripStatusLabel()
+        Me.lblActivity = New System.Windows.Forms.ToolStripStatusLabel()
         CType(Me.splitMain, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.splitMain.Panel1.SuspendLayout()
         Me.splitMain.Panel2.SuspendLayout()
@@ -154,7 +155,7 @@ Partial Class MainForm
         '
         ' statusStrip
         '
-        Me.statusStrip.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.lblScheduler, Me.lblLastRun})
+        Me.statusStrip.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.lblScheduler, Me.lblLastRun, Me.lblActivity})
         Me.statusStrip.Name = "statusStrip"
         Me.statusStrip.Dock = System.Windows.Forms.DockStyle.Bottom
         '
@@ -168,8 +169,16 @@ Partial Class MainForm
         '
         Me.lblLastRun.Name = "lblLastRun"
         Me.lblLastRun.Text = "Ready"
-        Me.lblLastRun.Spring = True
+        Me.lblLastRun.BorderSides = System.Windows.Forms.ToolStripStatusLabelBorderSides.Right
         Me.lblLastRun.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        '
+        ' lblActivity
+        '
+        Me.lblActivity.Name = "lblActivity"
+        Me.lblActivity.Text = ""
+        Me.lblActivity.Spring = True
+        Me.lblActivity.ForeColor = System.Drawing.Color.FromArgb(0, 100, 180)
+        Me.lblActivity.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
         '
         ' MainForm
         '
@@ -212,4 +221,5 @@ Partial Class MainForm
     Friend WithEvents statusStrip As System.Windows.Forms.StatusStrip
     Friend WithEvents lblScheduler As System.Windows.Forms.ToolStripStatusLabel
     Friend WithEvents lblLastRun As System.Windows.Forms.ToolStripStatusLabel
+    Friend WithEvents lblActivity As System.Windows.Forms.ToolStripStatusLabel
 End Class

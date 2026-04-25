@@ -11,16 +11,14 @@ Public Class LogsPanel
     Public Sub RefreshLogs()
         If AppState.Db Is Nothing Then Return
         Try
-            Dim hist = AppState.Db.GetJobHistory(maxRows:=500)
             Dim status = CStr(cboStatus.SelectedItem)
+            Dim statusFilter = If(status = "All", Nothing, status)
+            Dim hist = AppState.Db.GetJobHistory(maxRows:=500,
+                                                  fromDate:=dtpFrom.Value.Date,
+                                                  toDate:=dtpTo.Value.Date,
+                                                  statusFilter:=statusFilter)
 
-            Dim filtered = hist.Where(Function(h)
-                If h.StartedAt.Date < dtpFrom.Value.Date OrElse h.StartedAt.Date > dtpTo.Value.Date Then Return False
-                If status <> "All" AndAlso h.Status <> status Then Return False
-                Return True
-            End Function).ToList()
-
-            dgLogs.DataSource = filtered.Select(Function(h) New With {
+            dgLogs.DataSource = hist.Select(Function(h) New With {
                 .Job = h.JobName,
                 .Started = h.StartedAt.ToString("dd/MM/yyyy HH:mm:ss"),
                 .Completed = If(h.CompletedAt.HasValue, h.CompletedAt.Value.ToString("HH:mm:ss"), "—"),
@@ -30,7 +28,8 @@ Public Class LogsPanel
                 .Error = If(String.IsNullOrEmpty(h.ErrorMessage), "", h.ErrorMessage.Substring(0, Math.Min(200, h.ErrorMessage.Length)))
             }).ToList()
 
-            lblCount.Text = $"{filtered.Count} entries"
+            lblCount.Text = $"{hist.Count} entries"
+            GridColumnStore.Restore("LogsGrid", dgLogs)
             ColourRows()
         Catch ex As Exception
             MessageBox.Show($"Error loading logs: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
@@ -40,13 +39,17 @@ Public Class LogsPanel
     Private Sub ColourRows()
         For Each row As DataGridViewRow In dgLogs.Rows
             Dim status = If(row.Cells("Status")?.Value?.ToString(), "")
-            row.DefaultCellStyle.BackColor = Select Case status
-                Case "Success" : Drawing.Color.FromArgb(220, 255, 220)
-                Case "Failed" : Drawing.Color.FromArgb(255, 220, 220)
-                Case "Running" : Drawing.Color.FromArgb(255, 255, 200)
-                Case Else : Drawing.Color.White
+            Select Case status
+                Case "Success" : row.DefaultCellStyle.BackColor = Drawing.Color.FromArgb(220, 255, 220)
+                Case "Failed"  : row.DefaultCellStyle.BackColor = Drawing.Color.FromArgb(255, 220, 220)
+                Case "Running" : row.DefaultCellStyle.BackColor = Drawing.Color.FromArgb(255, 255, 200)
+                Case Else      : row.DefaultCellStyle.BackColor = Drawing.Color.White
             End Select
         Next
+    End Sub
+
+    Private Sub dgLogs_ColumnWidthChanged(sender As Object, e As DataGridViewColumnEventArgs) Handles dgLogs.ColumnWidthChanged
+        GridColumnStore.Save("LogsGrid", dgLogs)
     End Sub
 
     Private Sub btnRefresh_Click(sender As Object, e As EventArgs) Handles btnRefresh.Click

@@ -157,7 +157,7 @@ Partial Class DeputyPanel
         '
         Me.tabWorkTypes.Controls.Add(Me.dgWorkTypes)
         Me.tabWorkTypes.Name = "tabWorkTypes"
-        Me.tabWorkTypes.Text = "Work Types"
+        Me.tabWorkTypes.Text = "Departments"
         '
         ' dgWorkTypes
         '

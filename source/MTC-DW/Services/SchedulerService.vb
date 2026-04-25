@@ -44,27 +44,28 @@ Namespace Services
             If Not Monitor.TryEnter(_lock) Then Return  ' Skip tick if previous still running
             Try
                 Dim due = _db.GetDueJobs()
-                For Each job In due
-                    RunJobAsync(job).Wait()
-                Next
-            Catch
-                ' Keep scheduler alive through any error
+                If due.Count > 0 Then
+                    Dim tasks = due.Select(Function(job) RunJobAsync(job)).ToArray()
+                    Task.WaitAll(tasks)
+                End If
+            Catch ex As Exception
+                Debug.WriteLine($"[Scheduler] Unhandled error in timer callback: {ex.Message}")
             Finally
                 Monitor.Exit(_lock)
             End Try
         End Sub
 
-        Public Async Function RunJobNow(job As JobDefinition) As Task
-            Await RunJobAsync(job)
+        Public Async Function RunJobNow(job As JobDefinition, Optional ct As Threading.CancellationToken = Nothing) As Task
+            Await RunJobAsync(job, ct)
         End Function
 
-        Private Async Function RunJobAsync(job As JobDefinition) As Task
+        Private Async Function RunJobAsync(job As JobDefinition, Optional ct As Threading.CancellationToken = Nothing) As Task
             Dim histId = _db.StartJobHistory(job.Id)
             RaiseEvent JobStarted(Me, New JobEventArgs With {.JobId = job.Id, .JobName = job.JobName})
 
             Dim records As Integer = -1
             Try
-                records = Await DispatchJob(job)
+                records = Await DispatchJob(job, ct)
 
                 Dim nextRun As DateTime? = Nothing
                 Select Case job.ScheduleType
@@ -89,22 +90,25 @@ Namespace Services
                 _db.CompleteJobHistory(histId, "Success", records, Nothing)
                 RaiseEvent JobCompleted(Me, New JobEventArgs With {.JobId = job.Id, .JobName = job.JobName, .RecordsAffected = records})
 
+            Catch ex As OperationCanceledException
+                _db.CompleteJobHistory(histId, "Failed", -1, "Stopped by user")
+                RaiseEvent JobFailed(Me, New JobEventArgs With {.JobId = job.Id, .JobName = job.JobName, .ErrorMessage = "Stopped by user"})
             Catch ex As Exception
                 _db.CompleteJobHistory(histId, "Failed", -1, ex.Message)
                 RaiseEvent JobFailed(Me, New JobEventArgs With {.JobId = job.Id, .JobName = job.JobName, .ErrorMessage = ex.Message})
             End Try
         End Function
 
-        Private Async Function DispatchJob(job As JobDefinition) As Task(Of Integer)
+        Private Async Function DispatchJob(job As JobDefinition, ct As Threading.CancellationToken) As Task(Of Integer)
             Select Case job.SourceType
                 Case "Deputy"
-                    Return Await DispatchDeputy(job)
+                    Return Await DispatchDeputy(job, ct)
                 Case Else
                     Throw New NotSupportedException($"Unknown source type: {job.SourceType}")
             End Select
         End Function
 
-        Private Async Function DispatchDeputy(job As JobDefinition) As Task(Of Integer)
+        Private Async Function DispatchDeputy(job As JobDefinition, ct As Threading.CancellationToken) As Task(Of Integer)
             Dim baseUrl = _db.GetConfigValue("Deputy.BaseUrl")
             Dim token = _db.GetConfigValue("Deputy.OAuthToken")
             If String.IsNullOrEmpty(baseUrl) OrElse String.IsNullOrEmpty(token) Then
@@ -118,25 +122,38 @@ Namespace Services
                 Case "Timesheets"
                     If job.ScheduleType = "Backfill" AndAlso
                        job.SyncFromDate.HasValue AndAlso job.SyncToDate.HasValue Then
-                        Return Await RunBackfillChunk(job, sync)
+                        Return Await RunBackfillChunk(job, sync, ct)
                     End If
-                    Return Await sync.SyncTimesheets()
+                    Return Await sync.SyncTimesheets(ct)
 
-                Case "Employees" : Return Await sync.SyncEmployees()
-                Case "OperationalUnits" : Return Await sync.SyncOperationalUnits()
-                Case "WorkTypes" : Return Await sync.SyncWorkTypes()
+                Case "Rosters"
+                    If job.ScheduleType = "Backfill" AndAlso
+                       job.SyncFromDate.HasValue AndAlso job.SyncToDate.HasValue Then
+                        Return Await RunBackfillChunk(job, sync, ct)
+                    End If
+                    Return Await sync.SyncRosters(ct)
+
+                Case "Employees" : Return Await sync.SyncEmployees(ct)
+                Case "OperationalUnits" : Return Await sync.SyncOperationalUnits(ct)
+                Case "Departments" : Return Await sync.SyncDepartments(ct)
+                Case "Company" : Return Await sync.SyncCompany(ct)
                 Case Else : Throw New NotSupportedException($"Unknown entity type: {job.EntityType}")
             End Select
         End Function
 
-        Private Async Function RunBackfillChunk(job As JobDefinition, sync As DeputySyncService) As Task(Of Integer)
+        Private Async Function RunBackfillChunk(job As JobDefinition, sync As DeputySyncService, ct As Threading.CancellationToken) As Task(Of Integer)
             Dim chunkDays = If(job.ChunkDays.HasValue, job.ChunkDays.Value, 30)
             ' SyncCursor starts at SyncFromDate on the first run, then advances each chunk.
             Dim cursor = If(job.SyncCursor.HasValue, job.SyncCursor.Value, job.SyncFromDate.Value)
             Dim chunkEnd = cursor.AddDays(chunkDays - 1)
             If chunkEnd > job.SyncToDate.Value Then chunkEnd = job.SyncToDate.Value
 
-            Dim count = Await sync.SyncTimesheetRange(cursor, chunkEnd)
+            Dim count As Integer
+            Select Case job.EntityType
+                Case "Timesheets" : count = Await sync.SyncTimesheetRange(cursor, chunkEnd, ct)
+                Case "Rosters"    : count = Await sync.SyncRosterRange(cursor, chunkEnd, ct)
+                Case Else : Throw New NotSupportedException($"Backfill not supported for {job.EntityType}")
+            End Select
 
             ' Persist the next cursor; UpdateBackfillCursor auto-disables when past SyncToDate.
             _db.UpdateBackfillCursor(job.Id, chunkEnd.AddDays(1), job.SyncToDate.Value)
