@@ -1,3 +1,4 @@
+Imports System.Data
 Imports System.Data.SqlClient
 Imports System.Threading
 Imports System.Threading.Tasks
@@ -77,17 +78,18 @@ Namespace Services
 
             Await _api.ForEachPage("resource/Timesheet/QUERY", searchJson, label,
                 Sub(page)
+                    Dim batch = page.Where(Function(obj)
+                        Dim d = ParseJDate(obj, "Date")
+                        Return Not d.HasValue OrElse (d.Value >= fromDate AndAlso d.Value <= toDate)
+                    End Function).ToList()
+                    If batch.Count = 0 Then Return
                     Using conn = _db.GetConnection()
                         Using txn = conn.BeginTransaction()
-                            For Each obj As JObject In page
-                                Dim tsDate As Date? = ParseJDate(obj, "Date")
-                                If tsDate.HasValue AndAlso (tsDate.Value < fromDate OrElse tsDate.Value > toDate) Then Continue For
-                                UpsertTimesheet(obj, tsDate, conn, txn)
-                                total += 1
-                            Next
+                            BulkUpsertTimesheets(batch, conn, txn)
                             txn.Commit()
                         End Using
                     End Using
+                    total += batch.Count
                 End Sub, ct)
 
             Return total
@@ -121,22 +123,23 @@ Namespace Services
             Dim total As Integer = 0
             Await _api.ForEachPage("resource/Roster/QUERY", searchJson, label,
                 Sub(page)
+                    Dim batch = page.Where(Function(obj)
+                        Dim d = ParseJDate(obj, "Date")
+                        Return Not d.HasValue OrElse (d.Value >= fromDate AndAlso d.Value <= toDate)
+                    End Function).ToList()
+                    If batch.Count = 0 Then Return
                     Using conn = _db.GetConnection()
                         Using txn = conn.BeginTransaction()
-                            For Each obj As JObject In page
-                                Dim rDate As Date? = ParseJDate(obj, "Date")
-                                If rDate.HasValue AndAlso (rDate.Value < fromDate OrElse rDate.Value > toDate) Then Continue For
-                                UpsertRoster(obj, rDate, conn, txn)
-                                total += 1
-                            Next
+                            BulkUpsertRosters(batch, conn, txn)
                             txn.Commit()
                         End Using
                     End Using
+                    total += batch.Count
                 End Sub, ct)
             Return total
         End Function
 
-        ' ── Upsert helpers ───────────────────────────────────────────────────
+        ' ── Bulk upsert helpers (temp table + single MERGE per page) ─────────
 
         Private Shared Sub UpsertOperationalUnit(obj As JObject, conn As SqlConnection, txn As SqlTransaction)
             Dim id = SafeLong(obj, "Id")
@@ -216,46 +219,72 @@ Namespace Services
             End Using
         End Sub
 
-        Private Shared Sub UpsertRoster(obj As JObject, rDate As Date?, conn As SqlConnection, txn As SqlTransaction)
-            Dim id = SafeLong(obj, "Id")
-            Dim empId = SafeLong(obj, "Employee")
-            Dim ouId As Long? = Nothing
-            Dim ouToken = obj("OperationalUnit")
-            If ouToken IsNot Nothing AndAlso ouToken.Type = JTokenType.Integer Then ouId = ouToken.Value(Of Long)()
-            Dim tsId As Long? = Nothing
-            Dim tsToken = obj("MatchedByTimesheet")
-            If tsToken IsNot Nothing AndAlso tsToken.Type = JTokenType.Integer Then tsId = tsToken.Value(Of Long)()
-            Dim startTime As DateTime? = ParseJDateTime(obj, "StartTimeLocalized")
-            Dim endTime As DateTime? = ParseJDateTime(obj, "EndTimeLocalized")
-            Dim mealMins = ParseMealbreakMins(obj, "Mealbreak")
-            Dim totalHours = SafeDecimal(obj, "TotalTime")
-            Dim cost = SafeDecimal(obj, "Cost")
-            Dim onCost = SafeDecimal(obj, "OnCost")
-            Dim published = SafeBool(obj, "Published")
-            Dim isOpen = SafeBool(obj, "Open")
-            Dim modified As DateTime? = ParseJDateTime(obj, "Modified")
+        Private Shared Sub BulkUpsertRosters(rows As List(Of JObject), conn As SqlConnection, txn As SqlTransaction)
+            Dim dt As New DataTable()
+            dt.Columns.Add("Id", GetType(Long))
+            dt.Columns.Add("EmployeeId", GetType(Long))
+            dt.Columns.Add("OperationalUnitId", GetType(Long))
+            dt.Columns.Add("TimesheetId", GetType(Long))
+            dt.Columns.Add("RosterDate", GetType(DateTime))
+            dt.Columns.Add("StartTime", GetType(DateTime))
+            dt.Columns.Add("EndTime", GetType(DateTime))
+            dt.Columns.Add("MealbreakMinutes", GetType(Decimal))
+            dt.Columns.Add("TotalHours", GetType(Decimal))
+            dt.Columns.Add("Cost", GetType(Decimal))
+            dt.Columns.Add("OnCost", GetType(Decimal))
+            dt.Columns.Add("Published", GetType(Boolean))
+            dt.Columns.Add("IsOpen", GetType(Boolean))
+            dt.Columns.Add("Modified", GetType(DateTime))
+
+            For Each obj As JObject In rows
+                Dim empId = SafeLong(obj, "Employee")
+                Dim ouId As Long? = Nothing
+                Dim ouToken = obj("OperationalUnit")
+                If ouToken IsNot Nothing AndAlso ouToken.Type = JTokenType.Integer Then ouId = ouToken.Value(Of Long)()
+                Dim tsId As Long? = Nothing
+                Dim tsToken = obj("MatchedByTimesheet")
+                If tsToken IsNot Nothing AndAlso tsToken.Type = JTokenType.Integer Then tsId = tsToken.Value(Of Long)()
+                Dim rDate = ParseJDate(obj, "Date")
+                Dim startTime = ParseJDateTime(obj, "StartTimeLocalized")
+                Dim endTime = ParseJDateTime(obj, "EndTimeLocalized")
+                Dim mealMins = ParseMealbreakMins(obj, "Mealbreak")
+                Dim modified = ParseJDateTime(obj, "Modified")
+                Dim row = dt.NewRow()
+                row("Id") = SafeLong(obj, "Id")
+                row("EmployeeId") = If(empId <> 0, CObj(empId), DBNull.Value)
+                row("OperationalUnitId") = If(ouId.HasValue, CObj(ouId.Value), DBNull.Value)
+                row("TimesheetId") = If(tsId.HasValue, CObj(tsId.Value), DBNull.Value)
+                row("RosterDate") = If(rDate.HasValue, CObj(rDate.Value), DBNull.Value)
+                row("StartTime") = If(startTime.HasValue, CObj(startTime.Value), DBNull.Value)
+                row("EndTime") = If(endTime.HasValue, CObj(endTime.Value), DBNull.Value)
+                row("MealbreakMinutes") = If(mealMins.HasValue, CObj(mealMins.Value), DBNull.Value)
+                row("TotalHours") = SafeDecimal(obj, "TotalTime")
+                row("Cost") = SafeDecimal(obj, "Cost")
+                row("OnCost") = SafeDecimal(obj, "OnCost")
+                row("Published") = SafeBool(obj, "Published")
+                row("IsOpen") = SafeBool(obj, "Open")
+                row("Modified") = If(modified.HasValue, CObj(modified.Value), DBNull.Value)
+                dt.Rows.Add(row)
+            Next
+
             Using cmd As New SqlCommand(
-                "MERGE deputy.Rosters AS t " &
-                "USING (SELECT @id,@emp,@ou,@ts,@date,@start,@end,@meal,@hrs,@cost,@oncost,@pub,@open,@mod) AS " &
-                "s(Id,EmployeeId,OperationalUnitId,TimesheetId,RosterDate,StartTime,EndTime,MealbreakMinutes,TotalHours,Cost,OnCost,Published,IsOpen,Modified) " &
-                "ON t.Id=s.Id " &
+                "CREATE TABLE #rs (Id BIGINT NOT NULL, EmployeeId BIGINT NULL, OperationalUnitId BIGINT NULL, TimesheetId BIGINT NULL, " &
+                "RosterDate DATE NULL, StartTime DATETIME2 NULL, EndTime DATETIME2 NULL, MealbreakMinutes DECIMAL(5,2) NULL, " &
+                "TotalHours DECIMAL(6,2) NULL, Cost DECIMAL(18,4) NULL, OnCost DECIMAL(18,4) NULL, " &
+                "Published BIT NOT NULL, IsOpen BIT NOT NULL, Modified DATETIME2 NULL)", conn, txn)
+                cmd.ExecuteNonQuery()
+            End Using
+
+            Using bcp As New SqlBulkCopy(conn, SqlBulkCopyOptions.Default, txn)
+                bcp.DestinationTableName = "#rs"
+                bcp.WriteToServer(dt)
+            End Using
+
+            Using cmd As New SqlCommand(
+                "MERGE deputy.Rosters AS t USING #rs AS s ON t.Id = s.Id " &
                 "WHEN MATCHED THEN UPDATE SET EmployeeId=s.EmployeeId,OperationalUnitId=s.OperationalUnitId,TimesheetId=s.TimesheetId,RosterDate=s.RosterDate,StartTime=s.StartTime,EndTime=s.EndTime,MealbreakMinutes=s.MealbreakMinutes,TotalHours=s.TotalHours,Cost=s.Cost,OnCost=s.OnCost,Published=s.Published,IsOpen=s.IsOpen,Modified=s.Modified,SyncedAt=GETDATE() " &
                 "WHEN NOT MATCHED THEN INSERT (Id,EmployeeId,OperationalUnitId,TimesheetId,RosterDate,StartTime,EndTime,MealbreakMinutes,TotalHours,Cost,OnCost,Published,IsOpen,Modified) " &
                 "VALUES(s.Id,s.EmployeeId,s.OperationalUnitId,s.TimesheetId,s.RosterDate,s.StartTime,s.EndTime,s.MealbreakMinutes,s.TotalHours,s.Cost,s.OnCost,s.Published,s.IsOpen,s.Modified);", conn, txn)
-                cmd.Parameters.AddWithValue("@id", id)
-                cmd.Parameters.AddWithValue("@emp", If(empId <> 0, CObj(empId), DBNull.Value))
-                cmd.Parameters.AddWithValue("@ou", If(ouId.HasValue, CObj(ouId.Value), DBNull.Value))
-                cmd.Parameters.AddWithValue("@ts", If(tsId.HasValue, CObj(tsId.Value), DBNull.Value))
-                cmd.Parameters.AddWithValue("@date", If(rDate.HasValue, CObj(rDate.Value), DBNull.Value))
-                cmd.Parameters.AddWithValue("@start", If(startTime.HasValue, CObj(startTime.Value), DBNull.Value))
-                cmd.Parameters.AddWithValue("@end", If(endTime.HasValue, CObj(endTime.Value), DBNull.Value))
-                cmd.Parameters.AddWithValue("@meal", If(mealMins.HasValue, CObj(mealMins.Value), DBNull.Value))
-                cmd.Parameters.AddWithValue("@hrs", totalHours)
-                cmd.Parameters.AddWithValue("@cost", cost)
-                cmd.Parameters.AddWithValue("@oncost", onCost)
-                cmd.Parameters.AddWithValue("@pub", published)
-                cmd.Parameters.AddWithValue("@open", isOpen)
-                cmd.Parameters.AddWithValue("@mod", If(modified.HasValue, CObj(modified.Value), DBNull.Value))
                 cmd.ExecuteNonQuery()
             End Using
         End Sub
@@ -295,62 +324,86 @@ Namespace Services
             End Using
         End Sub
 
-        Private Shared Sub UpsertTimesheet(obj As JObject, tsDate As Date?, conn As SqlConnection, txn As SqlTransaction)
-            Dim id = SafeLong(obj, "Id")
-            Dim empId = SafeLong(obj, "Employee")
+        Private Shared Sub BulkUpsertTimesheets(rows As List(Of JObject), conn As SqlConnection, txn As SqlTransaction)
+            Dim dt As New DataTable()
+            dt.Columns.Add("Id", GetType(Long))
+            dt.Columns.Add("EmployeeId", GetType(Long))
+            dt.Columns.Add("OperationalUnitId", GetType(Long))
+            dt.Columns.Add("RosterId", GetType(Long))
+            dt.Columns.Add("TimesheetDate", GetType(DateTime))
+            dt.Columns.Add("StartTime", GetType(DateTime))
+            dt.Columns.Add("EndTime", GetType(DateTime))
+            dt.Columns.Add("MealbreakMinutes", GetType(Decimal))
+            dt.Columns.Add("TotalHours", GetType(Decimal))
+            dt.Columns.Add("TotalHoursInv", GetType(Decimal))
+            dt.Columns.Add("Cost", GetType(Decimal))
+            dt.Columns.Add("OnCost", GetType(Decimal))
+            dt.Columns.Add("IsApproved", GetType(Boolean))
+            dt.Columns.Add("IsPayRuleApproved", GetType(Boolean))
+            dt.Columns.Add("IsLeave", GetType(Boolean))
+            dt.Columns.Add("IsInProgress", GetType(Boolean))
+            dt.Columns.Add("Discarded", GetType(Boolean))
+            dt.Columns.Add("ReviewState", GetType(Integer))
+            dt.Columns.Add("Modified", GetType(DateTime))
 
-            Dim ouId As Long? = Nothing
-            Dim ouToken = obj("OperationalUnit")
-            If ouToken IsNot Nothing AndAlso ouToken.Type = JTokenType.Integer Then ouId = ouToken.Value(Of Long)()
-
-            Dim rosterId As Long? = Nothing
-            Dim rToken = obj("Roster")
-            If rToken IsNot Nothing AndAlso rToken.Type = JTokenType.Integer Then rosterId = rToken.Value(Of Long)()
-
-            Dim startTime As DateTime? = ParseJDateTime(obj, "StartTimeLocalized")
-            Dim endTime As DateTime? = ParseJDateTime(obj, "EndTimeLocalized")
-            Dim mealMins = ParseMealbreakMins(obj, "Mealbreak")
-            Dim totalHours = SafeDecimal(obj, "TotalTime")
-            Dim totalHoursInv = SafeDecimal(obj, "TotalTimeInv")
-            Dim cost = SafeDecimal(obj, "Cost")
-            Dim onCost = SafeDecimal(obj, "OnCost")
-            Dim approved = SafeBool(obj, "TimeApproved")
-            Dim payRuleApproved = SafeBool(obj, "PayRuleApproved")
-            Dim isLeave = SafeBool(obj, "IsLeave")
-            Dim isInProgress = SafeBool(obj, "IsInProgress")
-            Dim discarded = SafeBool(obj, "Discarded")
-            Dim reviewState As Integer? = Nothing
-            Dim rvToken = obj("ReviewState")
-            If rvToken IsNot Nothing AndAlso rvToken.Type = JTokenType.Integer Then reviewState = rvToken.Value(Of Integer)()
-            Dim modified As DateTime? = ParseJDateTime(obj, "Modified")
+            For Each obj As JObject In rows
+                Dim empId = SafeLong(obj, "Employee")
+                Dim ouId As Long? = Nothing
+                Dim ouToken = obj("OperationalUnit")
+                If ouToken IsNot Nothing AndAlso ouToken.Type = JTokenType.Integer Then ouId = ouToken.Value(Of Long)()
+                Dim rosterId As Long? = Nothing
+                Dim rToken = obj("Roster")
+                If rToken IsNot Nothing AndAlso rToken.Type = JTokenType.Integer Then rosterId = rToken.Value(Of Long)()
+                Dim reviewState As Integer? = Nothing
+                Dim rvToken = obj("ReviewState")
+                If rvToken IsNot Nothing AndAlso rvToken.Type = JTokenType.Integer Then reviewState = rvToken.Value(Of Integer)()
+                Dim tsDate = ParseJDate(obj, "Date")
+                Dim startTime = ParseJDateTime(obj, "StartTimeLocalized")
+                Dim endTime = ParseJDateTime(obj, "EndTimeLocalized")
+                Dim mealMins = ParseMealbreakMins(obj, "Mealbreak")
+                Dim modified = ParseJDateTime(obj, "Modified")
+                Dim row = dt.NewRow()
+                row("Id") = SafeLong(obj, "Id")
+                row("EmployeeId") = If(empId <> 0, CObj(empId), DBNull.Value)
+                row("OperationalUnitId") = If(ouId.HasValue, CObj(ouId.Value), DBNull.Value)
+                row("RosterId") = If(rosterId.HasValue, CObj(rosterId.Value), DBNull.Value)
+                row("TimesheetDate") = If(tsDate.HasValue, CObj(tsDate.Value), DBNull.Value)
+                row("StartTime") = If(startTime.HasValue, CObj(startTime.Value), DBNull.Value)
+                row("EndTime") = If(endTime.HasValue, CObj(endTime.Value), DBNull.Value)
+                row("MealbreakMinutes") = If(mealMins.HasValue, CObj(mealMins.Value), DBNull.Value)
+                row("TotalHours") = SafeDecimal(obj, "TotalTime")
+                row("TotalHoursInv") = SafeDecimal(obj, "TotalTimeInv")
+                row("Cost") = SafeDecimal(obj, "Cost")
+                row("OnCost") = SafeDecimal(obj, "OnCost")
+                row("IsApproved") = SafeBool(obj, "TimeApproved")
+                row("IsPayRuleApproved") = SafeBool(obj, "PayRuleApproved")
+                row("IsLeave") = SafeBool(obj, "IsLeave")
+                row("IsInProgress") = SafeBool(obj, "IsInProgress")
+                row("Discarded") = SafeBool(obj, "Discarded")
+                row("ReviewState") = If(reviewState.HasValue, CObj(reviewState.Value), DBNull.Value)
+                row("Modified") = If(modified.HasValue, CObj(modified.Value), DBNull.Value)
+                dt.Rows.Add(row)
+            Next
 
             Using cmd As New SqlCommand(
-                "MERGE deputy.Timesheets AS t " &
-                "USING (SELECT @id,@emp,@ou,@ros,@date,@start,@end,@meal,@hrs,@hrsinv,@cost,@oncost,@appr,@payr,@leave,@inp,@disc,@rev,@mod) AS " &
-                "s(Id,EmployeeId,OperationalUnitId,RosterId,TimesheetDate,StartTime,EndTime,MealbreakMinutes,TotalHours,TotalHoursInv,Cost,OnCost,IsApproved,IsPayRuleApproved,IsLeave,IsInProgress,Discarded,ReviewState,Modified) " &
-                "ON t.Id=s.Id " &
+                "CREATE TABLE #ts (Id BIGINT NOT NULL, EmployeeId BIGINT NULL, OperationalUnitId BIGINT NULL, RosterId BIGINT NULL, " &
+                "TimesheetDate DATE NULL, StartTime DATETIME2 NULL, EndTime DATETIME2 NULL, MealbreakMinutes DECIMAL(5,2) NULL, " &
+                "TotalHours DECIMAL(6,2) NULL, TotalHoursInv DECIMAL(6,2) NULL, Cost DECIMAL(18,4) NULL, OnCost DECIMAL(18,4) NULL, " &
+                "IsApproved BIT NOT NULL, IsPayRuleApproved BIT NOT NULL, IsLeave BIT NOT NULL, IsInProgress BIT NOT NULL, " &
+                "Discarded BIT NOT NULL, ReviewState INT NULL, Modified DATETIME2 NULL)", conn, txn)
+                cmd.ExecuteNonQuery()
+            End Using
+
+            Using bcp As New SqlBulkCopy(conn, SqlBulkCopyOptions.Default, txn)
+                bcp.DestinationTableName = "#ts"
+                bcp.WriteToServer(dt)
+            End Using
+
+            Using cmd As New SqlCommand(
+                "MERGE deputy.Timesheets AS t USING #ts AS s ON t.Id = s.Id " &
                 "WHEN MATCHED THEN UPDATE SET EmployeeId=s.EmployeeId,OperationalUnitId=s.OperationalUnitId,RosterId=s.RosterId,TimesheetDate=s.TimesheetDate,StartTime=s.StartTime,EndTime=s.EndTime,MealbreakMinutes=s.MealbreakMinutes,TotalHours=s.TotalHours,TotalHoursInv=s.TotalHoursInv,Cost=s.Cost,OnCost=s.OnCost,IsApproved=s.IsApproved,IsPayRuleApproved=s.IsPayRuleApproved,IsLeave=s.IsLeave,IsInProgress=s.IsInProgress,Discarded=s.Discarded,ReviewState=s.ReviewState,Modified=s.Modified,SyncedAt=GETDATE() " &
                 "WHEN NOT MATCHED THEN INSERT (Id,EmployeeId,OperationalUnitId,RosterId,TimesheetDate,StartTime,EndTime,MealbreakMinutes,TotalHours,TotalHoursInv,Cost,OnCost,IsApproved,IsPayRuleApproved,IsLeave,IsInProgress,Discarded,ReviewState,Modified) " &
                 "VALUES(s.Id,s.EmployeeId,s.OperationalUnitId,s.RosterId,s.TimesheetDate,s.StartTime,s.EndTime,s.MealbreakMinutes,s.TotalHours,s.TotalHoursInv,s.Cost,s.OnCost,s.IsApproved,s.IsPayRuleApproved,s.IsLeave,s.IsInProgress,s.Discarded,s.ReviewState,s.Modified);", conn, txn)
-                cmd.Parameters.AddWithValue("@id", id)
-                cmd.Parameters.AddWithValue("@emp", If(empId <> 0, CObj(empId), DBNull.Value))
-                cmd.Parameters.AddWithValue("@ou", If(ouId.HasValue, CObj(ouId.Value), DBNull.Value))
-                cmd.Parameters.AddWithValue("@ros", If(rosterId.HasValue, CObj(rosterId.Value), DBNull.Value))
-                cmd.Parameters.AddWithValue("@date", If(tsDate.HasValue, CObj(tsDate.Value), DBNull.Value))
-                cmd.Parameters.AddWithValue("@start", If(startTime.HasValue, CObj(startTime.Value), DBNull.Value))
-                cmd.Parameters.AddWithValue("@end", If(endTime.HasValue, CObj(endTime.Value), DBNull.Value))
-                cmd.Parameters.AddWithValue("@meal", If(mealMins.HasValue, CObj(mealMins.Value), DBNull.Value))
-                cmd.Parameters.AddWithValue("@hrs", totalHours)
-                cmd.Parameters.AddWithValue("@hrsinv", totalHoursInv)
-                cmd.Parameters.AddWithValue("@cost", cost)
-                cmd.Parameters.AddWithValue("@oncost", onCost)
-                cmd.Parameters.AddWithValue("@appr", approved)
-                cmd.Parameters.AddWithValue("@payr", payRuleApproved)
-                cmd.Parameters.AddWithValue("@leave", isLeave)
-                cmd.Parameters.AddWithValue("@inp", isInProgress)
-                cmd.Parameters.AddWithValue("@disc", discarded)
-                cmd.Parameters.AddWithValue("@rev", If(reviewState.HasValue, CObj(reviewState.Value), DBNull.Value))
-                cmd.Parameters.AddWithValue("@mod", If(modified.HasValue, CObj(modified.Value), DBNull.Value))
                 cmd.ExecuteNonQuery()
             End Using
         End Sub

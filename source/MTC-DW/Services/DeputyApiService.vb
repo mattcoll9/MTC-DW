@@ -44,7 +44,7 @@ Namespace Services
                                           processPage As Action(Of List(Of JObject)),
                                           Optional ct As CancellationToken = Nothing) As Task(Of Integer)
             Dim total As Integer = 0
-            Dim pageSize As Integer = 200
+            Dim pageSize As Integer = 500
             Dim start As Integer = 0
 
             Do

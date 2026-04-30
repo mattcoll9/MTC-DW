@@ -142,7 +142,7 @@ Namespace Services
         End Function
 
         Private Async Function RunBackfillChunk(job As JobDefinition, sync As DeputySyncService, ct As Threading.CancellationToken) As Task(Of Integer)
-            Dim chunkDays = If(job.ChunkDays.HasValue, job.ChunkDays.Value, 30)
+            Dim chunkDays = If(job.ChunkDays.HasValue, job.ChunkDays.Value, 60)
             ' SyncCursor starts at SyncFromDate on the first run, then advances each chunk.
             Dim cursor = If(job.SyncCursor.HasValue, job.SyncCursor.Value, job.SyncFromDate.Value)
             Dim chunkEnd = cursor.AddDays(chunkDays - 1)
