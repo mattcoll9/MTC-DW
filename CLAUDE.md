@@ -1,6 +1,6 @@
 # MTC-DW
 
-A Windows desktop application (WinForms, VB.NET, .NET Framework 4.8) that pulls data from external APIs and loads it into a SQL Server data warehouse. The scheduler runs jobs on a configurable cadence; each job syncs a specific entity type (timesheets, employees, etc.) from a source API (currently Deputy) into the `dbo` / `deputy` schemas.
+A Windows desktop application (WinForms, VB.NET, .NET Framework 4.8) that pulls data from external APIs and loads it into a SQL Server data warehouse. The scheduler runs jobs on a configurable cadence; each job syncs a specific entity type from a source API into SQL Server. Current sources: **Deputy** (REST JSON, `deputy` schema) and **RevSport** (CSV download via web session, `revsport` schema).
 
 ## Project Structure
 
@@ -14,11 +14,14 @@ MTC-DW/
 │   │   ├── AppConfig.vb
 │   │   ├── JobDefinition.vb
 │   │   ├── JobHistory.vb
-│   │   └── Deputy/               ← DpTimesheet, DpEmployee, DpOperationalUnit, DpWorkType
+│   │   ├── Deputy/               ← DpTimesheet, DpEmployee, DpOperationalUnit, DpWorkType
+│   │   └── RevSport/             ← RsMember, RsEvent, RsEventAttendee
 │   ├── Services/
 │   │   ├── DatabaseService.vb    ← SQL Server access + schema bootstrap (EnsureSchema)
 │   │   ├── DeputyApiService.vb   ← Deputy REST API client
 │   │   ├── DeputySyncService.vb  ← Orchestrates Deputy → SQL sync
+│   │   ├── RevSportApiService.vb ← RevSport web session client (login + TOTP + CSV download)
+│   │   ├── RevSportSyncService.vb← Orchestrates RevSport CSV → SQL bulk insert
 │   │   └── SchedulerService.vb  ← Job scheduling / timer loop
 │   └── Forms/
 │       ├── MainForm              ← Shell with nav sidebar
@@ -26,6 +29,7 @@ MTC-DW/
 │       ├── JobsPanel             ← Job list + CRUD toolbar
 │       ├── JobEditForm           ← Add / edit a job
 │       ├── DeputyPanel           ← Deputy data preview tabs
+│       ├── RevSportPanel         ← RevSport data preview (Members / Events / Attendees tabs)
 │       ├── LogsPanel             ← Run log viewer
 │       └── SettingsPanel         ← Connection string + config keys
 └── claude.md
@@ -132,6 +136,68 @@ GET  resource/Employee         (via GetAll helper, which POSTs {"search":{}})
 | OperationalUnit | `Company` | Integer ID (not object); **no `Code` field** — `PayrollExportName` is the code equivalent |
 | OperationalUnit | `CompanyCode`, `CompanyName` | Denormalised onto the OU response — read directly from `obj` |
 
+### RevSport authentication pattern
+
+RevSport uses web session auth (not a REST API key). `RevSportApiService` drives a stateful `HttpClient` through three steps:
+
+1. `GET /bsyc/login` — server sets `XSRF-TOKEN` cookie
+2. `POST /bsyc/login` with `_token` + credentials — if 2FA is required, the response HTML contains `otpModal`
+3. If 2FA: `POST /bsyc/tfa` with a TOTP code generated from `RevSport.TotpSeed` (base-32 RFC 6238)
+
+After login the session cookie is held in `_cookieContainer`. `DownloadCsvAsync` issues a `GET` for the report URL; if it gets HTML back (session expired) it re-authenticates once and retries.
+
+**Config keys** (`dbo.Config`):
+
+| Key | Purpose |
+|---|---|
+| `RevSport.Email` | Login username |
+| `RevSport.Password` | Login password |
+| `RevSport.TotpSeed` | Base-32 TOTP seed (leave empty if 2FA not enabled) |
+| `RevSport.SeasonId` | Season ID for member sync (default `43649` = 2025-26) |
+| `RevSport.EventsDaysBack` | Lookback window for events/attendees when no date range on job (default `90`) |
+
+### RevSport CSV download pattern
+
+There is no JSON API — reports are downloaded as CSV directly from the portal:
+
+```
+# Members (full season, all fields)
+GET https://portal.revolutionise.com.au/bsyc/members/reports/download
+    ?season_id=43649&fields[]=parentBodyID&...&report-format=csv
+
+# Events per-event summary
+GET https://portal.revolutionise.com.au/bsyc/events/reports/attendance
+    ?report_type=per-event&dateStart=01/01/2025&dateEnd=30/04/2025&report-format=csv
+
+# Events per-attendee (EventAttendees)
+GET https://portal.revolutionise.com.au/bsyc/events/reports/attendance
+    ?report_type=per-member&dateStart=...&dateEnd=...&report-format=csv
+```
+
+`RevSportSyncService` parses the CSV with `Microsoft.VisualBasic.FileIO.TextFieldParser`, builds a typed `DataTable`, then bulk-inserts via `SqlBulkCopy`. Existing rows for the period are deleted first (replace-not-upsert).
+
+### RevSport column alias system
+
+RevSport CSV headers vary between exports and portal versions. Each entity has an alias dictionary (e.g. `MemberAliases`) mapping every known header variant (normalised: lowercase, no spaces/underscores/hyphens) to the canonical `DataTable` column name. `BuildColumnMap` does the header → column mapping at parse time; missing columns become `DBNull`.
+
+### RevSport SQL schema (`revsport`)
+
+| Table | Key columns | Sync strategy |
+|---|---|---|
+| `revsport.Members` | `SeasonId`, `ParentBodyId` (unique index) | DELETE season + bulk insert |
+| `revsport.Events` | `DateStart`, `DateEnd` (range key) | DELETE range + bulk insert |
+| `revsport.EventAttendees` | `DateStart`, `DateEnd` (range key) | DELETE range + bulk insert |
+
+### RevSport entity types in jobs
+
+Valid `EntityType` values for `SourceType = "RevSport"`:
+
+| EntityType | Sync method | Date range? |
+|---|---|---|
+| `Members` | `SyncMembersAsync` | No (season-based) |
+| `Events` | `SyncEventsAsync` | Yes (`SyncFromDate`/`SyncToDate` or `EventsDaysBack`) |
+| `EventAttendees` | `SyncEventAttendeesAsync` | Yes (same as Events) |
+
 ### Backfill cursor behaviour
 
 `SyncCursor` tracks progress through the date range chunk by chunk. When a backfill job completes, `UpdateBackfillCursor` sets `IsEnabled = False` and clears `NextRunTime`. To restart or change the date range:
@@ -157,8 +223,9 @@ Debug → Start Debugging  (F5)
 
 ## External Services / Dependencies
 
-- **SQL Server** — connection string stored in `app.config` (`AppConfig` model reads it). Schema lives in `dbo` (jobs, config, history) and `deputy` (entity tables). `DatabaseService.EnsureSchema()` bootstraps all tables on startup — idempotent, safe to re-run.
+- **SQL Server** — connection string stored in `app.config` (`AppConfig` model reads it). Schema lives in `dbo` (jobs, config, history), `deputy` (Deputy entity tables), and `revsport` (RevSport entity tables). `DatabaseService.EnsureSchema()` bootstraps all tables on startup — idempotent, safe to re-run.
 - **Deputy API** — REST API, auth token stored in app config. `DeputyApiService` handles HTTP; `DeputySyncService` orchestrates paging + upsert into SQL.
+- **RevSport** — web portal CSV export (`portal.revolutionise.com.au`). `RevSportApiService` manages the browser-like session (login + optional TOTP); `RevSportSyncService` parses CSV and bulk-inserts into the `revsport` schema. Credentials stored in `dbo.Config` under `RevSport.*` keys.
 - **Newtonsoft.Json 13.0.3** — only external NuGet dependency; used for Deputy API response deserialisation.
 
 ## What NOT to do

@@ -8,5 +8,5 @@ Imports System.Runtime.InteropServices
 <Assembly: AssemblyCopyright("Copyright © MTC 2025")>
 <Assembly: ComVisible(False)>
 <Assembly: Guid("A1B2C3D4-E5F6-7890-ABCD-EF1234567890")>
-<Assembly: AssemblyVersion("1.0.0.9")>
-<Assembly: AssemblyFileVersion("1.0.0.9")>
+<Assembly: AssemblyVersion("1.1.0.0")>
+<Assembly: AssemblyFileVersion("1.1.0.0")>

@@ -7,8 +7,8 @@ Public Class JobEditForm
     Public Sub New(existingJob As JobDefinition)
         InitializeComponent()
 
-        cboSource.Items.AddRange({"Deputy"})
-        cboEntity.Items.AddRange({"Timesheets", "Rosters", "Employees", "OperationalUnits", "Company", "Departments"})
+        cboSource.Items.AddRange({"Deputy", "RevSport"})
+        cboEntity.Items.AddRange({"Timesheets", "Rosters", "Employees", "OperationalUnits", "Company", "Departments", "Members", "Events", "EventAttendees"})
         cboInterval.Items.AddRange({"2", "5", "15", "60", "240", "720", "1440"})
 
         If existingJob IsNot Nothing Then
@@ -68,11 +68,12 @@ Public Class JobEditForm
         lblIntervalMin.Visible = isRecurring OrElse isBackfill
         lblIntervalHint.Visible = isBackfill
 
-        Dim isDateFiltered = isTimesheets OrElse CStr(cboEntity.SelectedItem) = "Rosters"
+        Dim entity = CStr(If(cboEntity.SelectedItem, ""))
+        Dim isDateFiltered = entity = "Timesheets" OrElse entity = "Rosters" OrElse entity = "Events" OrElse entity = "EventAttendees"
         pnlBackfill.Visible = isBackfill AndAlso isDateFiltered
         If isBackfill AndAlso Not isDateFiltered Then
             lblBackfillNote.Visible = True
-            lblBackfillNote.Text = "Note: Backfill date range applies to Timesheets and Rosters only."
+            lblBackfillNote.Text = "Note: Backfill date range not applicable for this entity type."
         Else
             lblBackfillNote.Visible = False
         End If

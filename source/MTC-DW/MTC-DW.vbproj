@@ -58,6 +58,8 @@
     <Compile Include="Models\AppConfig.vb" />
     <Compile Include="Models\JobDefinition.vb" />
     <Compile Include="Models\JobHistory.vb" />
+    <Compile Include="Models\RevSport\RsMember.vb" />
+    <Compile Include="Models\RevSport\RsEvent.vb" />
     <Compile Include="Models\Deputy\DpTimesheet.vb" />
     <Compile Include="Models\Deputy\DpOperationalUnit.vb" />
     <Compile Include="Models\Deputy\DpWorkType.vb" />
@@ -65,6 +67,8 @@
     <Compile Include="Services\DatabaseService.vb" />
     <Compile Include="Services\DeputyApiService.vb" />
     <Compile Include="Services\DeputySyncService.vb" />
+    <Compile Include="Services\RevSportApiService.vb" />
+    <Compile Include="Services\RevSportSyncService.vb" />
     <Compile Include="Services\SchedulerService.vb" />
     <Compile Include="Forms\MainForm.vb">
       <SubType>Form</SubType>
@@ -95,6 +99,12 @@
     </Compile>
     <Compile Include="Forms\DeputyPanel.Designer.vb">
       <DependentUpon>DeputyPanel.vb</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\RevSportPanel.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Forms\RevSportPanel.Designer.vb">
+      <DependentUpon>RevSportPanel.vb</DependentUpon>
     </Compile>
     <Compile Include="Forms\SettingsPanel.vb">
       <SubType>UserControl</SubType>

@@ -67,7 +67,12 @@ Namespace Services
                 "IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'deputy.Timesheets') AND name='TotalMinutes') DROP TABLE deputy.Timesheets",
                 "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'deputy.Timesheets') AND type = 'U') CREATE TABLE deputy.Timesheets (Id BIGINT NOT NULL PRIMARY KEY, EmployeeId BIGINT NULL, OperationalUnitId BIGINT NULL, RosterId BIGINT NULL, TimesheetDate DATE NULL, StartTime DATETIME2 NULL, EndTime DATETIME2 NULL, MealbreakMinutes DECIMAL(5,2) NULL, TotalHours DECIMAL(6,2) NULL, TotalHoursInv DECIMAL(6,2) NULL, Cost DECIMAL(18,4) NULL, OnCost DECIMAL(18,4) NULL, IsApproved BIT NOT NULL DEFAULT 0, IsPayRuleApproved BIT NOT NULL DEFAULT 0, IsLeave BIT NOT NULL DEFAULT 0, IsInProgress BIT NOT NULL DEFAULT 0, Discarded BIT NOT NULL DEFAULT 0, ReviewState INT NULL, Modified DATETIME2 NULL, SyncedAt DATETIME2 NOT NULL DEFAULT GETDATE())",
                 "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'deputy.Rosters') AND type = 'U') CREATE TABLE deputy.Rosters (Id BIGINT NOT NULL PRIMARY KEY, EmployeeId BIGINT NULL, OperationalUnitId BIGINT NULL, TimesheetId BIGINT NULL, RosterDate DATE NULL, StartTime DATETIME2 NULL, EndTime DATETIME2 NULL, MealbreakMinutes DECIMAL(5,2) NULL, TotalHours DECIMAL(6,2) NULL, Cost DECIMAL(18,4) NULL, OnCost DECIMAL(18,4) NULL, Published BIT NOT NULL DEFAULT 0, IsOpen BIT NOT NULL DEFAULT 0, Modified DATETIME2 NULL, SyncedAt DATETIME2 NOT NULL DEFAULT GETDATE())",
-                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'deputy.Rosters') AND name='MealbreakMinutes') ALTER TABLE deputy.Rosters ADD MealbreakMinutes DECIMAL(5,2) NULL"
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'deputy.Rosters') AND name='MealbreakMinutes') ALTER TABLE deputy.Rosters ADD MealbreakMinutes DECIMAL(5,2) NULL",
+                "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name='revsport') EXEC('CREATE SCHEMA revsport')",
+                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id=OBJECT_ID(N'revsport.Members') AND type='U') CREATE TABLE revsport.Members (Id BIGINT IDENTITY(1,1) PRIMARY KEY, SeasonId INT NOT NULL, ParentBodyId NVARCHAR(50) NOT NULL, FullName NVARCHAR(200) NULL, DateOfBirth DATE NULL, Gender NVARCHAR(20) NULL, CreationTime DATETIME NULL, Address NVARCHAR(500) NULL, PhoneHome NVARCHAR(50) NULL, PhoneMobile NVARCHAR(50) NULL, Email NVARCHAR(200) NULL, PaymentStatus NVARCHAR(50) NULL, PaymentDate DATE NULL, PaymentMethod NVARCHAR(100) NULL, PaymentReceipt NVARCHAR(100) NULL, PaymentWho NVARCHAR(200) NULL, Deceased BIT NULL, LastUpdated DATETIME NULL, SyncedAt DATETIME NOT NULL DEFAULT GETDATE())",
+                "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_Members_Season_Body' AND object_id=OBJECT_ID(N'revsport.Members')) CREATE UNIQUE INDEX UX_Members_Season_Body ON revsport.Members(SeasonId, ParentBodyId)",
+                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id=OBJECT_ID(N'revsport.Events') AND type='U') CREATE TABLE revsport.Events (Id BIGINT IDENTITY(1,1) PRIMARY KEY, DateStart DATE NOT NULL, DateEnd DATE NOT NULL, EventName NVARCHAR(500) NULL, EventDate DATE NULL, Category NVARCHAR(200) NULL, StartTime NVARCHAR(50) NULL, EndTime NVARCHAR(50) NULL, Registered INT NULL, Attended INT NULL, Revenue DECIMAL(10,2) NULL, SyncedAt DATETIME NOT NULL DEFAULT GETDATE())",
+                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id=OBJECT_ID(N'revsport.EventAttendees') AND type='U') CREATE TABLE revsport.EventAttendees (Id BIGINT IDENTITY(1,1) PRIMARY KEY, DateStart DATE NOT NULL, DateEnd DATE NOT NULL, MemberId NVARCHAR(50) NULL, MemberName NVARCHAR(200) NULL, Email NVARCHAR(200) NULL, EventName NVARCHAR(500) NULL, EventDate DATE NULL, Category NVARCHAR(200) NULL, AttendanceStatus NVARCHAR(50) NULL, AmountPaid DECIMAL(10,2) NULL, SyncedAt DATETIME NOT NULL DEFAULT GETDATE())"
             }
 
             Using conn = GetConnection()
@@ -367,6 +372,57 @@ Namespace Services
             If Not allowed.Contains(tableName) Then Throw New ArgumentException("Invalid table name")
             Using conn = GetConnection()
                 Using da As New SqlDataAdapter($"SELECT * FROM {tableName} ORDER BY Id", conn)
+                    Dim dt As New DataTable()
+                    da.Fill(dt)
+                    Return dt
+                End Using
+            End Using
+        End Function
+
+        ' ── RevSport data queries ─────────────────────────────────────────────
+
+        Public Function GetRevSportMembers(seasonId As Integer) As DataTable
+            Using conn = GetConnection()
+                Using da As New SqlDataAdapter(
+                    "SELECT Id,SeasonId,ParentBodyId,FullName,DateOfBirth,Gender,CreationTime," &
+                    "Address,PhoneHome,PhoneMobile,Email,PaymentStatus,PaymentDate," &
+                    "PaymentMethod,PaymentReceipt,PaymentWho,Deceased,LastUpdated,SyncedAt " &
+                    "FROM revsport.Members WHERE SeasonId=@s ORDER BY FullName", conn)
+                    da.SelectCommand.Parameters.AddWithValue("@s", seasonId)
+                    Dim dt As New DataTable()
+                    da.Fill(dt)
+                    Return dt
+                End Using
+            End Using
+        End Function
+
+        Public Function GetRevSportEvents(dateFrom As Date, dateTo As Date) As DataTable
+            Using conn = GetConnection()
+                Using da As New SqlDataAdapter(
+                    "SELECT Id,DateStart,DateEnd,EventName,EventDate,Category,StartTime,EndTime," &
+                    "Registered,Attended,Revenue,SyncedAt " &
+                    "FROM revsport.Events " &
+                    "WHERE EventDate IS NULL OR (EventDate >= @from AND EventDate <= @to) " &
+                    "ORDER BY EventDate", conn)
+                    da.SelectCommand.Parameters.AddWithValue("@from", dateFrom)
+                    da.SelectCommand.Parameters.AddWithValue("@to", dateTo)
+                    Dim dt As New DataTable()
+                    da.Fill(dt)
+                    Return dt
+                End Using
+            End Using
+        End Function
+
+        Public Function GetRevSportEventAttendees(dateFrom As Date, dateTo As Date) As DataTable
+            Using conn = GetConnection()
+                Using da As New SqlDataAdapter(
+                    "SELECT Id,DateStart,DateEnd,MemberId,MemberName,Email,EventName,EventDate," &
+                    "Category,AttendanceStatus,AmountPaid,SyncedAt " &
+                    "FROM revsport.EventAttendees " &
+                    "WHERE EventDate IS NULL OR (EventDate >= @from AND EventDate <= @to) " &
+                    "ORDER BY EventDate,MemberName", conn)
+                    da.SelectCommand.Parameters.AddWithValue("@from", dateFrom)
+                    da.SelectCommand.Parameters.AddWithValue("@to", dateTo)
                     Dim dt As New DataTable()
                     da.Fill(dt)
                     Return dt

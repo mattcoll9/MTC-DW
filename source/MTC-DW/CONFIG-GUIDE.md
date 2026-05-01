@@ -9,6 +9,7 @@
 | .NET Framework | 4.8 (included with Windows 10 1903+) |
 | SQL Server | 2019 (any edition including Express/Developer) |
 | Deputy account | API access enabled |
+| RevSport account | Portal login credentials (+ TOTP seed if 2FA is enabled) |
 
 ---
 
@@ -29,7 +30,7 @@ Edit `source\MTC-DW\app.config`. Find:
 ```
 
 Update `Server=` to your SQL Server instance name (e.g. `.\SQLEXPRESS`, `MYSERVER\SQL2019`).  
-The database (`MTC_DataWarehouse`) will be **created automatically** if it exists; the app only creates tables. Create the database first in SSMS:
+The database (`MTC_DataWarehouse`) must exist before the app starts — create it in SSMS:
 
 ```sql
 CREATE DATABASE MTC_DataWarehouse;
@@ -41,7 +42,7 @@ Alternatively, update the connection string from within the app after first laun
 
 Press **F5** in Visual Studio. On first run the app will:
 1. Connect to SQL Server
-2. Create the `deputy` schema and all tables automatically
+2. Create the `deputy` and `revsport` schemas and all tables automatically
 3. Open the Dashboard
 
 If the connection fails, the Settings panel opens automatically.
@@ -50,8 +51,8 @@ If the connection fails, the Settings panel opens automatically.
 
 ## Entering Deputy API Credentials
 
-1. Click **Settings** in the toolbar (or nav tree)
-2. In the **API Configuration** section, type the key and value, then click **Save**:
+1. Click **Settings** in the nav tree
+2. In the **API Configuration** section, add each key and value, then click **Save**:
 
 | Key | Value |
 |-----|-------|
@@ -67,9 +68,39 @@ It is the URL you use to log into Deputy, e.g. `https://mycompany.au.deputy.com`
 
 ---
 
-## Creating Your First Job
+## Entering RevSport Credentials
 
-1. Click **Jobs** in the toolbar
+RevSport uses web portal login rather than an API token. The app drives the login flow automatically using the credentials stored in `dbo.Config`.
+
+1. Click **Settings** in the nav tree
+2. Add each key and value, then click **Save**:
+
+| Key | Value |
+|-----|-------|
+| `RevSport.Email` | Your RevSport portal login email |
+| `RevSport.Password` | Your RevSport portal login password |
+| `RevSport.TotpSeed` | Base-32 TOTP seed — **only required if 2FA is enabled on the account**; leave empty otherwise |
+| `RevSport.SeasonId` | Season ID to use for member sync (default `43649` = 2025-26; see Known Seasons below) |
+| `RevSport.EventsDaysBack` | How many days back to pull events/attendees when no date range is set on the job (default `90`) |
+
+**Finding the TOTP seed:**  
+When setting up 2FA in RevSport, the portal presents a QR code. Most authenticator apps allow you to view the underlying secret key — it will be a string of uppercase letters and digits. This is the value to enter for `RevSport.TotpSeed`.
+
+**Known Season IDs:**
+
+| SeasonId | Season |
+|----------|--------|
+| 43649 | 2025-26 (current) |
+| 36538 | 2024-25 |
+| 28884 | 2023-24 |
+| 22247 | 2022-23 |
+| 16773 | 2021-22 |
+
+---
+
+## Creating Deputy Jobs
+
+1. Click **Jobs** in the nav tree
 2. Click **Add Job** in the toolbar strip
 3. Fill in the dialog:
 
@@ -85,24 +116,41 @@ It is the URL you use to log into Deputy, e.g. `https://mycompany.au.deputy.com`
 
 4. Click **OK**
 5. To test immediately: select the job row and click **Run Now**
-6. Watch the status bar at the bottom of the window and check the **Logs** panel
 
 **Recommended job set for Deputy:**
 
 | Job Name | Entity | Interval |
 |----------|--------|----------|
-| Deputy — Timesheets | Timesheets | 240 min (4h) |
 | Deputy — Employees | Employees | 1440 min (24h) |
 | Deputy — Operational Units | OperationalUnits | 1440 min (24h) |
-| Deputy — Work Types | WorkTypes | 1440 min (24h) |
+| Deputy — Company | Company | 1440 min (24h) |
+| Deputy — Timesheets | Timesheets | 240 min (4h) |
+| Deputy — Rosters | Rosters | 240 min (4h) |
 
-Run the non-Timesheet jobs first so that the lookup tables are populated before timesheets sync.
+Run the Employees and OperationalUnits jobs first so lookup tables are populated before timesheets sync.
 
 ---
 
-## Running a Historical Backfill
+## Creating RevSport Jobs
 
-Use this when you need to load more history than the rolling `SyncDaysBack` window covers — e.g. the first time you set up Deputy, or to backfill 2 years of timesheets.
+**Recommended job set for RevSport:**
+
+| Job Name | Source | Entity | Schedule | Interval |
+|----------|--------|--------|----------|----------|
+| RevSport — Members | RevSport | Members | Recurring | 1440 min (24h) |
+| RevSport — Events | RevSport | Events | Recurring | 1440 min (24h) |
+| RevSport — Event Attendees | RevSport | EventAttendees | Recurring | 1440 min (24h) |
+
+- **Members** uses `RevSport.SeasonId` from config — no date range required on the job.
+- **Events** and **EventAttendees** use the job's `SyncFromDate`/`SyncToDate` if set, otherwise fall back to today minus `RevSport.EventsDaysBack` days.
+
+To load events for a specific period, set Schedule to **Backfill** and provide a date range.
+
+---
+
+## Running a Historical Backfill (Deputy)
+
+Use this when you need to load more history than the rolling `SyncDaysBack` window covers.
 
 1. Click **Jobs** → **Add Job**
 2. Set the fields as follows:
@@ -122,27 +170,34 @@ Use this when you need to load more history than the rolling `SyncDaysBack` wind
 
 3. Click **OK**, then select the row and click **Run Now** to start immediately
 4. Watch the **Schedule** column — it will show `Backfill 4%`, `Backfill 8%` etc. as chunks complete
-5. Check the **Logs** panel to see each chunk's record count
-6. When complete, the job auto-disables itself (`Enabled = No`)
+5. When complete, the job auto-disables itself (`Enabled = No`)
 
 **Tips:**
 - Smaller chunks (14 days) are safer if the Deputy API is slow or rate-limited
-- The backfill is restartable: close the app at any time and it will resume from the last completed chunk
-- Run the `Employees`, `OperationalUnits`, and `WorkTypes` jobs **first** so FK lookups in timesheets resolve correctly
+- The backfill is restartable: close the app at any time and it resumes from the last completed chunk
+- Run `Employees` and `OperationalUnits` jobs **first** so FK lookups in timesheets resolve correctly
 
 ---
 
 ## Viewing Synced Data
 
-- Click **Deputy** in the toolbar
-- The **Timesheets** tab shows a date-filtered grid (set From/To and click Load)
-- The **Employees**, **Operational Units**, and **Work Types** tabs load automatically when the tab is selected
+### Deputy data
+
+- Click **Deputy** in the nav tree
+- **Timesheets** tab: set From/To date range and click **Load**
+- **Employees**, **Operational Units**, and **Work Types** tabs load automatically on selection
+
+### RevSport data
+
+- Click **RevSport** in the nav tree
+- **Members** tab: select a season from the dropdown and click **Load**
+- **Events** and **Event Attendees** tabs: set From/To date range and click **Load**
 
 ---
 
 ## Checking Logs
 
-- Click **Logs** in the toolbar
+- Click **Logs** in the nav tree
 - Filter by date range and/or status (All / Success / Failed / Running)
 - Row colours: green = Success, red = Failed, yellow = Running
 
@@ -155,31 +210,7 @@ Settings panel → **SQL Server Connection** section:
 2. Click **Test** to verify
 3. Click **Save** — this writes to `app.config` and takes effect immediately
 
-A restart is recommended after changing to a new database, as the schema initialisation only runs on startup.
-
----
-
-## Adding a New Data Source (Developer Guide)
-
-1. **Create the schema and tables** — add DDL to `DatabaseService.EnsureSchema()` following the same `IF NOT EXISTS` pattern
-2. **Create `Services\XxxApiService.vb`** — model after `DeputyApiService.vb`; implement `GetAllPaged` or equivalent
-3. **Create `Services\XxxSyncService.vb`** — model after `DeputySyncService.vb`; one `Async Function SyncXxx() As Task(Of Integer)` per entity
-4. **Register in the scheduler** — add a `Case "Xxx"` branch in `SchedulerService.DispatchJob`
-5. **Add config keys** — add defaults to `SettingsPanel.SeedDefaults()` (e.g. `Xxx.BaseUrl`, `Xxx.ApiKey`)
-6. **Add a UI panel** — create `Forms\XxxPanel.vb` + `XxxPanel.Designer.vb`, wire into `MainForm.ShowPanel` and `MainForm.InitNavTree`
-7. **Add to Jobs dialog** — add the new `SourceType` string to `JobEditForm.cboSource.Items`
-
-No changes to any existing files (other than steps 4, 5, 6, 7) are required.
-
----
-
-## Future: Separate Database per Source
-
-The design supports this without code changes. To move the `deputy` schema to a separate database:
-
-1. In Settings, add a config key: `Deputy.ConnectionString` with the new database's connection string
-2. In `SchedulerService.DispatchDeputy`, read this key and pass it to `DatabaseService` instead of the default connection
-3. In `DatabaseService.EnsureSchema`, move the `deputy.*` DDL to a separate method called with the deputy-specific connection
+A restart is recommended after changing to a new database, as schema initialisation only runs on startup.
 
 ---
 
@@ -190,5 +221,8 @@ The design supports this without code changes. To move the `deputy` schema to a 
 | "Cannot connect" on startup | SQL Server running? Instance name correct? Firewall? |
 | Jobs not firing on schedule | App must remain open. Check NextRunTime in Jobs grid. |
 | Deputy sync returns 0 records | Check `Deputy.BaseUrl` ends with `/api/v1/`. Check `Deputy.OAuthToken` is correct. |
+| RevSport login fails | Check `RevSport.Email` and `RevSport.Password`. If 2FA is enabled, ensure `RevSport.TotpSeed` is set to the correct base-32 secret. |
+| RevSport returns HTML instead of CSV | Session expired and re-auth also failed — check credentials. |
+| RevSport sync returns 0 records | The date range may return no events, or the season ID may be incorrect. Check the portal manually. |
 | "Source type not supported" error | SourceType in job row doesn't match any `Case` in `SchedulerService.DispatchJob`. |
 | Schema creation error | Ensure the database exists and your Windows account has `db_owner` or `ddl_admin`. |

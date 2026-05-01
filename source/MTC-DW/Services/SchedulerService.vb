@@ -103,6 +103,8 @@ Namespace Services
             Select Case job.SourceType
                 Case "Deputy"
                     Return Await DispatchDeputy(job, ct)
+                Case "RevSport"
+                    Return Await DispatchRevSport(job, ct)
                 Case Else
                     Throw New NotSupportedException($"Unknown source type: {job.SourceType}")
             End Select
@@ -138,6 +140,25 @@ Namespace Services
                 Case "Departments" : Return Await sync.SyncDepartments(ct)
                 Case "Company" : Return Await sync.SyncCompany(ct)
                 Case Else : Throw New NotSupportedException($"Unknown entity type: {job.EntityType}")
+            End Select
+        End Function
+
+        Private Async Function DispatchRevSport(job As JobDefinition, ct As Threading.CancellationToken) As Task(Of Integer)
+            Dim username = _db.GetConfigValue("RevSport.Email")
+            Dim password = _db.GetConfigValue("RevSport.Password")
+            Dim totpSeed = _db.GetConfigValue("RevSport.TotpSeed")
+            If String.IsNullOrEmpty(username) OrElse String.IsNullOrEmpty(password) Then
+                Throw New InvalidOperationException("RevSport credentials not configured. Open Settings and set RevSport.Email and RevSport.Password.")
+            End If
+
+            Dim api As New RevSportApiService(username, password, If(totpSeed, ""))
+            Dim sync As New RevSportSyncService(_db, api)
+
+            Select Case job.EntityType
+                Case "Members" : Return Await sync.SyncMembersAsync(job, ct)
+                Case "Events" : Return Await sync.SyncEventsAsync(job, ct)
+                Case "EventAttendees" : Return Await sync.SyncEventAttendeesAsync(job, ct)
+                Case Else : Throw New NotSupportedException($"Unknown RevSport entity type: {job.EntityType}")
             End Select
         End Function
 

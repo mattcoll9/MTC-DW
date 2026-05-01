@@ -119,7 +119,12 @@ Public Class SettingsPanel
         Dim defaults As New Dictionary(Of String, String) From {
             {"Deputy.BaseUrl", "https://YOURINSTANCE.au.deputy.com/api/v1/"},
             {"Deputy.OAuthToken", ""},
-            {"Deputy.SyncDaysBack", "90"}
+            {"Deputy.SyncDaysBack", "90"},
+            {"RevSport.Email", ""},
+            {"RevSport.Password", ""},
+            {"RevSport.TotpSeed", ""},
+            {"RevSport.SeasonId", "43649"},
+            {"RevSport.EventsDaysBack", "90"}
         }
         For Each kv In defaults
             If String.IsNullOrEmpty(AppState.Db.GetConfigValue(kv.Key)) Then

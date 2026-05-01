@@ -7,6 +7,7 @@ Public Class MainForm
     Private _dashboard As DashboardPanel
     Private _jobs As JobsPanel
     Private _deputy As DeputyPanel
+    Private _revSport As RevSportPanel
     Private _settings As SettingsPanel
     Private _logs As LogsPanel
 
@@ -74,6 +75,7 @@ Public Class MainForm
         tvNav.Nodes.Clear()
         Dim nSources = tvNav.Nodes.Add("Sources")
         nSources.Nodes.Add("Deputy").Tag = "Deputy"
+        nSources.Nodes.Add("RevSport").Tag = "RevSport"
 
         Dim nJobs = tvNav.Nodes.Add("Jobs")
         nJobs.Nodes.Add("Schedule").Tag = "Jobs"
@@ -107,6 +109,10 @@ Public Class MainForm
             Case "Deputy"
                 If _deputy Is Nothing Then _deputy = New DeputyPanel()
                 ctrl = _deputy
+
+            Case "RevSport"
+                If _revSport Is Nothing Then _revSport = New RevSportPanel()
+                ctrl = _revSport
 
             Case "Settings"
                 If _settings Is Nothing Then _settings = New SettingsPanel()
