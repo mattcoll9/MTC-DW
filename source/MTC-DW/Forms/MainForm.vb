@@ -73,14 +73,13 @@ Public Class MainForm
 
     Private Sub InitNavTree()
         tvNav.Nodes.Clear()
+        tvNav.Nodes.Add("Dashboard").Tag = "Dashboard"
         Dim nSources = tvNav.Nodes.Add("Sources")
         nSources.Nodes.Add("Deputy").Tag = "Deputy"
         nSources.Nodes.Add("RevSport").Tag = "RevSport"
-
         Dim nJobs = tvNav.Nodes.Add("Jobs")
         nJobs.Nodes.Add("Schedule").Tag = "Jobs"
         nJobs.Nodes.Add("History").Tag = "Logs"
-
         tvNav.Nodes.Add("Settings").Tag = "Settings"
         tvNav.ExpandAll()
     End Sub
@@ -129,7 +128,6 @@ Public Class MainForm
 
         ctrl.Dock = DockStyle.Fill
         pnlContent.Controls.Add(ctrl)
-        lblCurrentPanel.Text = name
     End Sub
 
     ' ── Scheduler event handlers (called from background thread) ─────────────
@@ -164,28 +162,6 @@ Public Class MainForm
         lblActivity.Text = ""
         If _logs IsNot Nothing AndAlso _logs.Visible Then _logs.RefreshLogs()
         If _jobs IsNot Nothing AndAlso _jobs.Visible Then _jobs.RefreshJobs()
-    End Sub
-
-    ' ── Toolbar buttons ───────────────────────────────────────────────────────
-
-    Private Sub btnDashboard_Click(sender As Object, e As EventArgs) Handles btnDashboard.Click
-        ShowPanel("Dashboard")
-    End Sub
-
-    Private Sub btnJobs_Click(sender As Object, e As EventArgs) Handles btnJobs.Click
-        ShowPanel("Jobs")
-    End Sub
-
-    Private Sub btnDeputy_Click(sender As Object, e As EventArgs) Handles btnDeputy.Click
-        ShowPanel("Deputy")
-    End Sub
-
-    Private Sub btnLogs_Click(sender As Object, e As EventArgs) Handles btnLogs.Click
-        ShowPanel("Logs")
-    End Sub
-
-    Private Sub btnSettings_Click(sender As Object, e As EventArgs) Handles btnSettings.Click
-        ShowPanel("Settings")
     End Sub
 
 End Class

@@ -100,11 +100,23 @@
     <Compile Include="Forms\DeputyPanel.Designer.vb">
       <DependentUpon>DeputyPanel.vb</DependentUpon>
     </Compile>
+    <Compile Include="Forms\DeputyConfigForm.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\DeputyConfigForm.Designer.vb">
+      <DependentUpon>DeputyConfigForm.vb</DependentUpon>
+    </Compile>
     <Compile Include="Forms\RevSportPanel.vb">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="Forms\RevSportPanel.Designer.vb">
       <DependentUpon>RevSportPanel.vb</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\RevSportConfigForm.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\RevSportConfigForm.Designer.vb">
+      <DependentUpon>RevSportConfigForm.vb</DependentUpon>
     </Compile>
     <Compile Include="Forms\SettingsPanel.vb">
       <SubType>UserControl</SubType>

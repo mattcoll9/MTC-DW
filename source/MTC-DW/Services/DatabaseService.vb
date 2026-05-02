@@ -72,7 +72,10 @@ Namespace Services
                 "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id=OBJECT_ID(N'revsport.Members') AND type='U') CREATE TABLE revsport.Members (Id BIGINT IDENTITY(1,1) PRIMARY KEY, SeasonId INT NOT NULL, ParentBodyId NVARCHAR(50) NOT NULL, FullName NVARCHAR(200) NULL, DateOfBirth DATE NULL, Gender NVARCHAR(20) NULL, CreationTime DATETIME NULL, Address NVARCHAR(500) NULL, PhoneHome NVARCHAR(50) NULL, PhoneMobile NVARCHAR(50) NULL, Email NVARCHAR(200) NULL, PaymentStatus NVARCHAR(50) NULL, PaymentDate DATE NULL, PaymentMethod NVARCHAR(100) NULL, PaymentReceipt NVARCHAR(100) NULL, PaymentWho NVARCHAR(200) NULL, Deceased BIT NULL, LastUpdated DATETIME NULL, SyncedAt DATETIME NOT NULL DEFAULT GETDATE())",
                 "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_Members_Season_Body' AND object_id=OBJECT_ID(N'revsport.Members')) CREATE UNIQUE INDEX UX_Members_Season_Body ON revsport.Members(SeasonId, ParentBodyId)",
                 "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id=OBJECT_ID(N'revsport.Events') AND type='U') CREATE TABLE revsport.Events (Id BIGINT IDENTITY(1,1) PRIMARY KEY, DateStart DATE NOT NULL, DateEnd DATE NOT NULL, EventName NVARCHAR(500) NULL, EventDate DATE NULL, Category NVARCHAR(200) NULL, StartTime NVARCHAR(50) NULL, EndTime NVARCHAR(50) NULL, Registered INT NULL, Attended INT NULL, Revenue DECIMAL(10,2) NULL, SyncedAt DATETIME NOT NULL DEFAULT GETDATE())",
-                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id=OBJECT_ID(N'revsport.EventAttendees') AND type='U') CREATE TABLE revsport.EventAttendees (Id BIGINT IDENTITY(1,1) PRIMARY KEY, DateStart DATE NOT NULL, DateEnd DATE NOT NULL, MemberId NVARCHAR(50) NULL, MemberName NVARCHAR(200) NULL, Email NVARCHAR(200) NULL, EventName NVARCHAR(500) NULL, EventDate DATE NULL, Category NVARCHAR(200) NULL, AttendanceStatus NVARCHAR(50) NULL, AmountPaid DECIMAL(10,2) NULL, SyncedAt DATETIME NOT NULL DEFAULT GETDATE())"
+                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id=OBJECT_ID(N'revsport.EventAttendees') AND type='U') CREATE TABLE revsport.EventAttendees (Id BIGINT IDENTITY(1,1) PRIMARY KEY, DateStart DATE NOT NULL, DateEnd DATE NOT NULL, MemberId NVARCHAR(50) NULL, MemberName NVARCHAR(200) NULL, Email NVARCHAR(200) NULL, EventName NVARCHAR(500) NULL, EventDate DATE NULL, Category NVARCHAR(200) NULL, AttendanceStatus NVARCHAR(50) NULL, AmountPaid DECIMAL(10,2) NULL, SyncedAt DATETIME NOT NULL DEFAULT GETDATE())",
+                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id=OBJECT_ID(N'revsport.Seasons') AND type='U') CREATE TABLE revsport.Seasons (SeasonId INT PRIMARY KEY, SeasonLabel NVARCHAR(100) NOT NULL, DiscoveredAt DATETIME NOT NULL DEFAULT GETDATE())",
+                "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.Jobs') AND name='VerboseEnabled') ALTER TABLE dbo.Jobs ADD VerboseEnabled BIT NOT NULL DEFAULT 0",
+                "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id=OBJECT_ID(N'dbo.VerboseLog') AND type='U') CREATE TABLE dbo.VerboseLog (Id BIGINT IDENTITY(1,1) PRIMARY KEY, JobHistoryId INT NOT NULL, LogTime DATETIME NOT NULL DEFAULT GETDATE(), Message NVARCHAR(MAX) NOT NULL)"
             }
 
             Using conn = GetConnection()
@@ -145,7 +148,7 @@ Namespace Services
             Using conn = GetConnection()
                 Using cmd As New SqlCommand(
                     "SELECT Id,JobName,SourceType,EntityType,ScheduleType,IntervalMinutes," &
-                    "NextRunTime,LastRunTime,IsEnabled,SyncFromDate,SyncToDate,ChunkDays,SyncCursor " &
+                    "NextRunTime,LastRunTime,IsEnabled,SyncFromDate,SyncToDate,ChunkDays,SyncCursor,VerboseEnabled " &
                     "FROM dbo.Jobs ORDER BY JobName", conn)
                     Using rdr = cmd.ExecuteReader()
                         While rdr.Read()
@@ -162,7 +165,7 @@ Namespace Services
             Using conn = GetConnection()
                 Using cmd As New SqlCommand(
                     "SELECT Id,JobName,SourceType,EntityType,ScheduleType,IntervalMinutes," &
-                    "NextRunTime,LastRunTime,IsEnabled,SyncFromDate,SyncToDate,ChunkDays,SyncCursor " &
+                    "NextRunTime,LastRunTime,IsEnabled,SyncFromDate,SyncToDate,ChunkDays,SyncCursor,VerboseEnabled " &
                     "FROM dbo.Jobs " &
                     "WHERE IsEnabled = 1 AND NextRunTime IS NOT NULL AND NextRunTime <= GETDATE()", conn)
                     Using rdr = cmd.ExecuteReader()
@@ -189,7 +192,8 @@ Namespace Services
                 .SyncFromDate = If(rdr.IsDBNull(9), CType(Nothing, Date?), rdr.GetDateTime(9).Date),
                 .SyncToDate = If(rdr.IsDBNull(10), CType(Nothing, Date?), rdr.GetDateTime(10).Date),
                 .ChunkDays = If(rdr.IsDBNull(11), CType(Nothing, Integer?), rdr.GetInt32(11)),
-                .SyncCursor = If(rdr.IsDBNull(12), CType(Nothing, Date?), rdr.GetDateTime(12).Date)
+                .SyncCursor = If(rdr.IsDBNull(12), CType(Nothing, Date?), rdr.GetDateTime(12).Date),
+                .VerboseEnabled = If(rdr.IsDBNull(13), False, rdr.GetBoolean(13))
             }
         End Function
 
@@ -198,8 +202,8 @@ Namespace Services
                 If job.Id = 0 Then
                     Using cmd As New SqlCommand(
                         "INSERT INTO dbo.Jobs (JobName,SourceType,EntityType,ScheduleType,IntervalMinutes," &
-                        "NextRunTime,IsEnabled,SyncFromDate,SyncToDate,ChunkDays,SyncCursor) " &
-                        "OUTPUT INSERTED.Id VALUES (@n,@src,@ent,@sched,@intv,@next,@ena,@sfd,@std,@cd,@sc)", conn)
+                        "NextRunTime,IsEnabled,SyncFromDate,SyncToDate,ChunkDays,SyncCursor,VerboseEnabled) " &
+                        "OUTPUT INSERTED.Id VALUES (@n,@src,@ent,@sched,@intv,@next,@ena,@sfd,@std,@cd,@sc,@ve)", conn)
                         SetJobParams(cmd, job)
                         Return CInt(cmd.ExecuteScalar())
                     End Using
@@ -207,7 +211,7 @@ Namespace Services
                     Using cmd As New SqlCommand(
                         "UPDATE dbo.Jobs SET JobName=@n,SourceType=@src,EntityType=@ent,ScheduleType=@sched," &
                         "IntervalMinutes=@intv,NextRunTime=@next,IsEnabled=@ena," &
-                        "SyncFromDate=@sfd,SyncToDate=@std,ChunkDays=@cd,SyncCursor=@sc WHERE Id=@id", conn)
+                        "SyncFromDate=@sfd,SyncToDate=@std,ChunkDays=@cd,SyncCursor=@sc,VerboseEnabled=@ve WHERE Id=@id", conn)
                         SetJobParams(cmd, job)
                         cmd.Parameters.AddWithValue("@id", job.Id)
                         cmd.ExecuteNonQuery()
@@ -229,6 +233,7 @@ Namespace Services
             cmd.Parameters.AddWithValue("@std", If(job.SyncToDate.HasValue, CObj(job.SyncToDate.Value), DBNull.Value))
             cmd.Parameters.AddWithValue("@cd", If(job.ChunkDays.HasValue, CObj(job.ChunkDays.Value), DBNull.Value))
             cmd.Parameters.AddWithValue("@sc", If(job.SyncCursor.HasValue, CObj(job.SyncCursor.Value), DBNull.Value))
+            cmd.Parameters.AddWithValue("@ve", job.VerboseEnabled)
         End Sub
 
         ' Advance the backfill cursor; disable job when cursor has passed SyncToDate.
@@ -345,6 +350,32 @@ Namespace Services
             Return result
         End Function
 
+        ' ── Verbose log ──────────────────────────────────────────────────────
+
+        Public Sub WriteVerboseLog(histId As Integer, message As String)
+            Try
+                Using conn = GetConnection()
+                    Using cmd As New SqlCommand("INSERT INTO dbo.VerboseLog (JobHistoryId,Message) VALUES (@h,@m)", conn)
+                        cmd.Parameters.AddWithValue("@h", histId)
+                        cmd.Parameters.AddWithValue("@m", message)
+                        cmd.ExecuteNonQuery()
+                    End Using
+                End Using
+            Catch
+            End Try
+        End Sub
+
+        Public Function GetVerboseLog(histId As Integer) As DataTable
+            Using conn = GetConnection()
+                Using da As New SqlDataAdapter("SELECT LogTime, Message FROM dbo.VerboseLog WHERE JobHistoryId=@h ORDER BY Id", conn)
+                    da.SelectCommand.Parameters.AddWithValue("@h", histId)
+                    Dim dt As New DataTable()
+                    da.Fill(dt)
+                    Return dt
+                End Using
+            End Using
+        End Function
+
         ' ── Deputy data queries ───────────────────────────────────────────────
 
         Public Function GetDeputyTimesheets(fromDate As Date, toDate As Date) As DataTable
@@ -430,6 +461,16 @@ Namespace Services
             End Using
         End Function
 
+        Public Sub UpsertRevSportSeason(seasonId As Integer, label As String)
+            Using conn = GetConnection()
+                Using cmd As New SqlCommand("MERGE revsport.Seasons AS t USING (SELECT @id AS SeasonId, @lbl AS SeasonLabel) AS s ON t.SeasonId=s.SeasonId WHEN NOT MATCHED THEN INSERT (SeasonId,SeasonLabel) VALUES (s.SeasonId,s.SeasonLabel) WHEN MATCHED AND t.SeasonLabel<>s.SeasonLabel THEN UPDATE SET SeasonLabel=s.SeasonLabel;", conn)
+                    cmd.Parameters.AddWithValue("@id", seasonId)
+                    cmd.Parameters.AddWithValue("@lbl", label)
+                    cmd.ExecuteNonQuery()
+                End Using
+            End Using
+        End Sub
+
         Public Function GetDashboardStats() As Dictionary(Of String, Integer)
             Dim stats As New Dictionary(Of String, Integer)
             Dim queries As New Dictionary(Of String, String) From {
@@ -451,6 +492,46 @@ Namespace Services
                 Next
             End Using
             Return stats
+        End Function
+
+        Public Function GetTableStats() As DataTable
+            Dim dt As New DataTable()
+            dt.Columns.Add("Source", GetType(String))
+            dt.Columns.Add("Table", GetType(String))
+            dt.Columns.Add("Rows", GetType(Integer))
+            dt.Columns.Add("LastSync", GetType(String))
+            Dim tables As String()() = {
+                New String() {"Deputy",   "deputy.Timesheets",       "SyncedAt"},
+                New String() {"Deputy",   "deputy.Rosters",          "SyncedAt"},
+                New String() {"Deputy",   "deputy.Employees",        "SyncedAt"},
+                New String() {"Deputy",   "deputy.OperationalUnits", "SyncedAt"},
+                New String() {"Deputy",   "deputy.Company",          "SyncedAt"},
+                New String() {"Deputy",   "deputy.Departments",      "SyncedAt"},
+                New String() {"RevSport", "revsport.Members",        "SyncedAt"},
+                New String() {"RevSport", "revsport.Events",         "SyncedAt"},
+                New String() {"RevSport", "revsport.EventAttendees", "SyncedAt"}
+            }
+            Using conn = GetConnection()
+                For Each t In tables
+                    Try
+                        Dim sql = "SELECT COUNT(*), MAX(" & t(2) & ") FROM " & t(1)
+                        Using cmd As New SqlCommand(sql, conn)
+                            Using rdr = cmd.ExecuteReader()
+                                If rdr.Read() Then
+                                    Dim cnt As Integer = If(rdr.IsDBNull(0), 0, rdr.GetInt32(0))
+                                    Dim ls As String = If(rdr.IsDBNull(1), "Never", rdr.GetDateTime(1).ToString("dd/MM/yyyy HH:mm"))
+                                    Dim shortName = t(1).Substring(t(1).IndexOf("."c) + 1)
+                                    dt.Rows.Add(t(0), shortName, cnt, ls)
+                                End If
+                            End Using
+                        End Using
+                    Catch
+                        Dim shortName = t(1).Substring(t(1).IndexOf("."c) + 1)
+                        dt.Rows.Add(t(0), shortName, 0, "—")
+                    End Try
+                Next
+            End Using
+            Return dt
         End Function
 
     End Class

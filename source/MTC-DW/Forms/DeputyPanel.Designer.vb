@@ -13,6 +13,7 @@ Partial Class DeputyPanel
         Me.lblTo = New System.Windows.Forms.Label()
         Me.dtpFrom = New System.Windows.Forms.DateTimePicker()
         Me.lblFrom = New System.Windows.Forms.Label()
+        Me.btnConfigure = New System.Windows.Forms.Button()
         Me.tabDeputy = New System.Windows.Forms.TabControl()
         Me.tabTimesheets = New System.Windows.Forms.TabPage()
         Me.dgTimesheets = New System.Windows.Forms.DataGridView()
@@ -42,6 +43,7 @@ Partial Class DeputyPanel
         Me.pnlFilter.Controls.Add(Me.lblTo)
         Me.pnlFilter.Controls.Add(Me.dtpFrom)
         Me.pnlFilter.Controls.Add(Me.lblFrom)
+        Me.pnlFilter.Controls.Add(Me.btnConfigure)
         Me.pnlFilter.Dock = System.Windows.Forms.DockStyle.Top
         Me.pnlFilter.Name = "pnlFilter"
         Me.pnlFilter.Size = New System.Drawing.Size(900, 40)
@@ -91,6 +93,14 @@ Partial Class DeputyPanel
         Me.lblTimesheetCount.Name = "lblTimesheetCount"
         Me.lblTimesheetCount.Size = New System.Drawing.Size(160, 20)
         Me.lblTimesheetCount.ForeColor = System.Drawing.Color.Gray
+        '
+        ' btnConfigure
+        '
+        Me.btnConfigure.Anchor = System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Right
+        Me.btnConfigure.Location = New System.Drawing.Point(796, 7)
+        Me.btnConfigure.Name = "btnConfigure"
+        Me.btnConfigure.Size = New System.Drawing.Size(96, 26)
+        Me.btnConfigure.Text = "Configure…"
         '
         ' tabDeputy
         '
@@ -205,4 +215,5 @@ Partial Class DeputyPanel
     Friend WithEvents dgOpUnits As System.Windows.Forms.DataGridView
     Friend WithEvents tabWorkTypes As System.Windows.Forms.TabPage
     Friend WithEvents dgWorkTypes As System.Windows.Forms.DataGridView
+    Friend WithEvents btnConfigure As System.Windows.Forms.Button
 End Class

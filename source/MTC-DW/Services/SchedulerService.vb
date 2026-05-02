@@ -65,7 +65,7 @@ Namespace Services
 
             Dim records As Integer = -1
             Try
-                records = Await DispatchJob(job, ct)
+                records = Await DispatchJob(job, histId, ct)
 
                 Dim nextRun As DateTime? = Nothing
                 Select Case job.ScheduleType
@@ -99,18 +99,18 @@ Namespace Services
             End Try
         End Function
 
-        Private Async Function DispatchJob(job As JobDefinition, ct As Threading.CancellationToken) As Task(Of Integer)
+        Private Async Function DispatchJob(job As JobDefinition, histId As Integer, ct As Threading.CancellationToken) As Task(Of Integer)
             Select Case job.SourceType
                 Case "Deputy"
-                    Return Await DispatchDeputy(job, ct)
+                    Return Await DispatchDeputy(job, histId, ct)
                 Case "RevSport"
-                    Return Await DispatchRevSport(job, ct)
+                    Return Await DispatchRevSport(job, histId, ct)
                 Case Else
                     Throw New NotSupportedException($"Unknown source type: {job.SourceType}")
             End Select
         End Function
 
-        Private Async Function DispatchDeputy(job As JobDefinition, ct As Threading.CancellationToken) As Task(Of Integer)
+        Private Async Function DispatchDeputy(job As JobDefinition, histId As Integer, ct As Threading.CancellationToken) As Task(Of Integer)
             Dim baseUrl = _db.GetConfigValue("Deputy.BaseUrl")
             Dim token = _db.GetConfigValue("Deputy.OAuthToken")
             If String.IsNullOrEmpty(baseUrl) OrElse String.IsNullOrEmpty(token) Then
@@ -143,7 +143,7 @@ Namespace Services
             End Select
         End Function
 
-        Private Async Function DispatchRevSport(job As JobDefinition, ct As Threading.CancellationToken) As Task(Of Integer)
+        Private Async Function DispatchRevSport(job As JobDefinition, histId As Integer, ct As Threading.CancellationToken) As Task(Of Integer)
             Dim username = _db.GetConfigValue("RevSport.Email")
             Dim password = _db.GetConfigValue("RevSport.Password")
             Dim totpSeed = _db.GetConfigValue("RevSport.TotpSeed")
@@ -151,11 +151,23 @@ Namespace Services
                 Throw New InvalidOperationException("RevSport credentials not configured. Open Settings and set RevSport.Email and RevSport.Password.")
             End If
 
+            Dim logger As Action(Of String) = Nothing
+            If job.VerboseEnabled Then
+                Dim capturedId = histId
+                logger = Sub(msg)
+                             Try
+                                 _db.WriteVerboseLog(capturedId, msg)
+                             Catch
+                             End Try
+                         End Sub
+            End If
             Dim api As New RevSportApiService(username, password, If(totpSeed, ""))
-            Dim sync As New RevSportSyncService(_db, api)
+            Dim sync As New RevSportSyncService(_db, api, logger)
 
             Select Case job.EntityType
-                Case "Members" : Return Await sync.SyncMembersAsync(job, ct)
+                Case "Members"
+                    If job.ScheduleType = "Backfill" Then Return Await sync.SyncAllMembersAsync(job, ct)
+                    Return Await sync.SyncMembersAsync(job, ct)
                 Case "Events" : Return Await sync.SyncEventsAsync(job, ct)
                 Case "EventAttendees" : Return Await sync.SyncEventAttendeesAsync(job, ct)
                 Case Else : Throw New NotSupportedException($"Unknown RevSport entity type: {job.EntityType}")

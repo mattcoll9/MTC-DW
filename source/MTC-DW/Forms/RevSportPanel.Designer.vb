@@ -15,6 +15,7 @@ Partial Class RevSportPanel
         Me.lblFrom = New System.Windows.Forms.Label()
         Me.cboSeason = New System.Windows.Forms.ComboBox()
         Me.lblSeason = New System.Windows.Forms.Label()
+        Me.btnConfigure = New System.Windows.Forms.Button()
         Me.tabRevSport = New System.Windows.Forms.TabControl()
         Me.tabMembers = New System.Windows.Forms.TabPage()
         Me.dgMembers = New System.Windows.Forms.DataGridView()
@@ -42,6 +43,7 @@ Partial Class RevSportPanel
         Me.pnlFilter.Controls.Add(Me.lblFrom)
         Me.pnlFilter.Controls.Add(Me.cboSeason)
         Me.pnlFilter.Controls.Add(Me.lblSeason)
+        Me.pnlFilter.Controls.Add(Me.btnConfigure)
         Me.pnlFilter.Dock = System.Windows.Forms.DockStyle.Top
         Me.pnlFilter.Name = "pnlFilter"
         Me.pnlFilter.Size = New System.Drawing.Size(900, 40)
@@ -106,6 +108,14 @@ Partial Class RevSportPanel
         Me.lblCount.Name = "lblCount"
         Me.lblCount.Size = New System.Drawing.Size(160, 20)
         Me.lblCount.ForeColor = System.Drawing.Color.Gray
+        '
+        ' btnConfigure
+        '
+        Me.btnConfigure.Anchor = System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Right
+        Me.btnConfigure.Location = New System.Drawing.Point(796, 7)
+        Me.btnConfigure.Name = "btnConfigure"
+        Me.btnConfigure.Size = New System.Drawing.Size(96, 26)
+        Me.btnConfigure.Text = "Configure…"
         '
         ' tabRevSport
         '
@@ -200,4 +210,5 @@ Partial Class RevSportPanel
     Friend WithEvents dgEvents As System.Windows.Forms.DataGridView
     Friend WithEvents tabAttendees As System.Windows.Forms.TabPage
     Friend WithEvents dgAttendees As System.Windows.Forms.DataGridView
+    Friend WithEvents btnConfigure As System.Windows.Forms.Button
 End Class

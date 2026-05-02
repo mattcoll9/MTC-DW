@@ -11,13 +11,6 @@ Partial Class MainForm
         Me.tvNav = New System.Windows.Forms.TreeView()
         Me.lblNav = New System.Windows.Forms.Label()
         Me.pnlRight = New System.Windows.Forms.Panel()
-        Me.pnlToolbar = New System.Windows.Forms.Panel()
-        Me.btnSettings = New System.Windows.Forms.Button()
-        Me.btnLogs = New System.Windows.Forms.Button()
-        Me.btnDeputy = New System.Windows.Forms.Button()
-        Me.btnJobs = New System.Windows.Forms.Button()
-        Me.btnDashboard = New System.Windows.Forms.Button()
-        Me.lblCurrentPanel = New System.Windows.Forms.Label()
         Me.pnlContent = New System.Windows.Forms.Panel()
         Me.statusStrip = New System.Windows.Forms.StatusStrip()
         Me.lblScheduler = New System.Windows.Forms.ToolStripStatusLabel()
@@ -29,7 +22,6 @@ Partial Class MainForm
         Me.splitMain.SuspendLayout()
         Me.pnlNav.SuspendLayout()
         Me.pnlRight.SuspendLayout()
-        Me.pnlToolbar.SuspendLayout()
         Me.statusStrip.SuspendLayout()
         Me.SuspendLayout()
         '
@@ -79,73 +71,8 @@ Partial Class MainForm
         ' pnlRight
         '
         Me.pnlRight.Controls.Add(Me.pnlContent)
-        Me.pnlRight.Controls.Add(Me.pnlToolbar)
         Me.pnlRight.Dock = System.Windows.Forms.DockStyle.Fill
         Me.pnlRight.Name = "pnlRight"
-        '
-        ' pnlToolbar
-        '
-        Me.pnlToolbar.BackColor = System.Drawing.Color.FromArgb(240, 240, 240)
-        Me.pnlToolbar.Controls.Add(Me.lblCurrentPanel)
-        Me.pnlToolbar.Controls.Add(Me.btnSettings)
-        Me.pnlToolbar.Controls.Add(Me.btnLogs)
-        Me.pnlToolbar.Controls.Add(Me.btnDeputy)
-        Me.pnlToolbar.Controls.Add(Me.btnJobs)
-        Me.pnlToolbar.Controls.Add(Me.btnDashboard)
-        Me.pnlToolbar.Dock = System.Windows.Forms.DockStyle.Top
-        Me.pnlToolbar.Name = "pnlToolbar"
-        Me.pnlToolbar.Size = New System.Drawing.Size(906, 40)
-        '
-        ' btnDashboard
-        '
-        Me.btnDashboard.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.btnDashboard.Location = New System.Drawing.Point(4, 6)
-        Me.btnDashboard.Name = "btnDashboard"
-        Me.btnDashboard.Size = New System.Drawing.Size(90, 28)
-        Me.btnDashboard.Text = "Dashboard"
-        '
-        ' btnJobs
-        '
-        Me.btnJobs.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.btnJobs.Location = New System.Drawing.Point(98, 6)
-        Me.btnJobs.Name = "btnJobs"
-        Me.btnJobs.Size = New System.Drawing.Size(70, 28)
-        Me.btnJobs.Text = "Jobs"
-        '
-        ' btnDeputy
-        '
-        Me.btnDeputy.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.btnDeputy.Location = New System.Drawing.Point(172, 6)
-        Me.btnDeputy.Name = "btnDeputy"
-        Me.btnDeputy.Size = New System.Drawing.Size(70, 28)
-        Me.btnDeputy.Text = "Deputy"
-        '
-        ' btnLogs
-        '
-        Me.btnLogs.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.btnLogs.Location = New System.Drawing.Point(246, 6)
-        Me.btnLogs.Name = "btnLogs"
-        Me.btnLogs.Size = New System.Drawing.Size(60, 28)
-        Me.btnLogs.Text = "Logs"
-        '
-        ' btnSettings
-        '
-        Me.btnSettings.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.btnSettings.Location = New System.Drawing.Point(310, 6)
-        Me.btnSettings.Name = "btnSettings"
-        Me.btnSettings.Size = New System.Drawing.Size(70, 28)
-        Me.btnSettings.Text = "Settings"
-        '
-        ' lblCurrentPanel
-        '
-        Me.lblCurrentPanel.Anchor = System.Windows.Forms.AnchorStyles.Right
-        Me.lblCurrentPanel.Font = New System.Drawing.Font("Segoe UI", 9, System.Drawing.FontStyle.Bold)
-        Me.lblCurrentPanel.ForeColor = System.Drawing.Color.FromArgb(0, 122, 204)
-        Me.lblCurrentPanel.Location = New System.Drawing.Point(700, 10)
-        Me.lblCurrentPanel.Name = "lblCurrentPanel"
-        Me.lblCurrentPanel.Size = New System.Drawing.Size(200, 20)
-        Me.lblCurrentPanel.Text = ""
-        Me.lblCurrentPanel.TextAlign = System.Drawing.ContentAlignment.MiddleRight
         '
         ' pnlContent
         '
@@ -198,7 +125,6 @@ Partial Class MainForm
         Me.splitMain.ResumeLayout(False)
         Me.pnlNav.ResumeLayout(False)
         Me.pnlRight.ResumeLayout(False)
-        Me.pnlToolbar.ResumeLayout(False)
         Me.statusStrip.ResumeLayout(False)
         Me.statusStrip.PerformLayout()
         Me.ResumeLayout(False)
@@ -210,13 +136,6 @@ Partial Class MainForm
     Friend WithEvents lblNav As System.Windows.Forms.Label
     Friend WithEvents tvNav As System.Windows.Forms.TreeView
     Friend WithEvents pnlRight As System.Windows.Forms.Panel
-    Friend WithEvents pnlToolbar As System.Windows.Forms.Panel
-    Friend WithEvents btnDashboard As System.Windows.Forms.Button
-    Friend WithEvents btnJobs As System.Windows.Forms.Button
-    Friend WithEvents btnDeputy As System.Windows.Forms.Button
-    Friend WithEvents btnLogs As System.Windows.Forms.Button
-    Friend WithEvents btnSettings As System.Windows.Forms.Button
-    Friend WithEvents lblCurrentPanel As System.Windows.Forms.Label
     Friend WithEvents pnlContent As System.Windows.Forms.Panel
     Friend WithEvents statusStrip As System.Windows.Forms.StatusStrip
     Friend WithEvents lblScheduler As System.Windows.Forms.ToolStripStatusLabel

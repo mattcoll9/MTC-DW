@@ -9,29 +9,39 @@ Namespace Services
 
         Private _db As DatabaseService
         Private _api As RevSportApiService
+        Private _logger As Action(Of String)
 
-        Public Sub New(db As DatabaseService, api As RevSportApiService)
+        Public Sub New(db As DatabaseService, api As RevSportApiService, Optional logger As Action(Of String) = Nothing)
             _db = db
             _api = api
+            _logger = logger
+        End Sub
+
+        Private Sub Log(msg As String)
+            AppState.Activity?.Invoke(msg)
+            _logger?.Invoke(msg)
         End Sub
 
         ' ── Alias tables: normalized CSV header → DataTable column name ────────
 
         Private Shared ReadOnly MemberAliases As New Dictionary(Of String, String)(StringComparer.Ordinal) From {
             {"parentbodyid", "ParentBodyId"}, {"parentbody", "ParentBodyId"},
+            {"australiansailingnumber", "ParentBodyId"}, {"sailingnumber", "ParentBodyId"}, {"membernumber", "ParentBodyId"},
             {"name", "FullName"}, {"fullname", "FullName"},
             {"dateofbirth", "DateOfBirth"}, {"dob", "DateOfBirth"},
-            {"genderword", "Gender"}, {"gender", "Gender"},
+            {"genderword", "Gender"}, {"gender", "Gender"}, {"genderidentity", "Gender"},
             {"creationtime", "CreationTime"}, {"created", "CreationTime"}, {"registrationdate", "CreationTime"},
+            {"registeredon", "CreationTime"}, {"registrationtime", "CreationTime"},
             {"address", "Address"},
             {"phonehome", "PhoneHome"}, {"homephone", "PhoneHome"},
-            {"phonemob", "PhoneMobile"}, {"mobile", "PhoneMobile"}, {"phonemobile", "PhoneMobile"}, {"mobilenumber", "PhoneMobile"},
+            {"phonemob", "PhoneMobile"}, {"mobile", "PhoneMobile"}, {"phonemobile", "PhoneMobile"},
+            {"mobilenumber", "PhoneMobile"}, {"mobilephone", "PhoneMobile"},
             {"email", "Email"}, {"emailaddress", "Email"},
             {"paymentstatus", "PaymentStatus"},
             {"paymentdate", "PaymentDate"},
             {"paymentmethod", "PaymentMethod"},
-            {"paymentreceipt", "PaymentReceipt"},
-            {"paymentwho", "PaymentWho"},
+            {"paymentreceipt", "PaymentReceipt"}, {"receiptnumber", "PaymentReceipt"},
+            {"paymentwho", "PaymentWho"}, {"collectedby", "PaymentWho"},
             {"deceased", "Deceased"},
             {"lastupdated", "LastUpdated"}, {"lastmodified", "LastUpdated"}, {"lastupdatetime", "LastUpdated"}
         }
@@ -61,15 +71,37 @@ Namespace Services
         ' ── Public sync methods ───────────────────────────────────────────────
 
         Public Async Function SyncMembersAsync(job As JobDefinition, ct As Threading.CancellationToken) As Task(Of Integer)
-            Dim seasonId As Integer = 43649
-            Integer.TryParse(If(_db.GetConfigValue("RevSport.SeasonId"), "43649"), seasonId)
-            If seasonId <= 0 Then seasonId = 43649
+            Return Await SyncMembersForSeasonAsync(RevSportApiService.KnownSeasons.Keys.Max(), ct)
+        End Function
 
-            AppState.Activity?.Invoke($"RevSport: downloading members for season {seasonId}…")
-            Dim csv = Await _api.DownloadCsvAsync(BuildMembersUrl(seasonId))
+        Public Async Function SyncAllMembersAsync(job As JobDefinition, ct As Threading.CancellationToken) As Task(Of Integer)
+            ' Seed all known seasons into the lookup table up front
+            For Each kv In RevSportApiService.KnownSeasons
+                _db.UpsertRevSportSeason(kv.Key, kv.Value)
+            Next
+            Dim total = 0
+            For Each kv In RevSportApiService.KnownSeasons
+                ct.ThrowIfCancellationRequested()
+                total += Await SyncMembersForSeasonAsync(kv.Key, ct)
+            Next
+            Return total
+        End Function
+
+        Private Async Function SyncMembersForSeasonAsync(seasonId As Integer, ct As Threading.CancellationToken) As Task(Of Integer)
+            Log($"RevSport: downloading members CSV for season {seasonId}…")
+            Dim csv = Await _api.DownloadCsvAsync(BuildMembersUrl(seasonId), "https://portal.revolutionise.com.au/bsyc/members/reports")
+            Log($"RevSport: CSV received ({csv.Length} chars), parsing…")
+            Dim tmpFile = IO.Path.Combine(IO.Path.GetTempPath(), $"revsport-members-{seasonId}.csv")
+            IO.File.WriteAllText(tmpFile, csv, System.Text.Encoding.UTF8)
+            Log($"RevSport: CSV saved to {tmpFile}")
+            Dim firstLine = If(csv.IndexOf(vbLf) > 0, csv.Substring(0, csv.IndexOf(vbLf)).Trim(), csv.Substring(0, Math.Min(500, csv.Length)))
+            Log($"RevSport: CSV header row: {firstLine}")
             Dim dt = ParseMembersCsv(csv, seasonId)
-
-            AppState.Activity?.Invoke($"RevSport: importing {dt.Rows.Count} members…")
+            Log($"RevSport: parsed {dt.Rows.Count} member rows")
+            If dt.Rows.Count = 0 Then
+                Log($"RevSport: season {seasonId} returned 0 members — preserving existing data (archived or not yet populated)")
+                Return 0
+            End If
             Using conn = _db.GetConnection()
                 Using cmd As New SqlCommand("DELETE FROM revsport.Members WHERE SeasonId=@s", conn)
                     cmd.Parameters.AddWithValue("@s", seasonId)
@@ -82,6 +114,12 @@ Namespace Services
                     Await bcp.WriteToServerAsync(dt)
                 End Using
             End Using
+            ' Record this season in the lookup table (handles seasons not in KnownSeasons)
+            Dim label As String = Nothing
+            If Not RevSportApiService.KnownSeasons.TryGetValue(seasonId, label) Then
+                label = $"Season {seasonId}"
+            End If
+            _db.UpsertRevSportSeason(seasonId, label)
             Return dt.Rows.Count
         End Function
 
@@ -89,11 +127,16 @@ Namespace Services
             Dim dateFrom As Date, dateTo As Date
             GetDateRange(job, dateFrom, dateTo)
 
-            AppState.Activity?.Invoke($"RevSport: downloading events {dateFrom:dd/MM/yyyy}–{dateTo:dd/MM/yyyy}…")
-            Dim csv = Await _api.DownloadCsvAsync(BuildEventsUrl(dateFrom, dateTo, "per-event"))
+            Log($"RevSport: downloading events {dateFrom:dd/MM/yyyy}–{dateTo:dd/MM/yyyy}…")
+            Dim csv = Await _api.DownloadCsvAsync(BuildEventsUrl(dateFrom, dateTo, "per-event"), "https://portal.revolutionise.com.au/bsyc/events/reports")
+            Log($"RevSport: CSV received ({csv.Length} chars), parsing…")
+            Dim tmpFile = IO.Path.Combine(IO.Path.GetTempPath(), $"revsport-events-{dateFrom:yyyyMMdd}-{dateTo:yyyyMMdd}.csv")
+            IO.File.WriteAllText(tmpFile, csv, System.Text.Encoding.UTF8)
+            Log($"RevSport: CSV saved to {tmpFile}")
+            Dim firstLine = If(csv.IndexOf(vbLf) > 0, csv.Substring(0, csv.IndexOf(vbLf)).Trim(), csv.Substring(0, Math.Min(500, csv.Length)))
+            Log($"RevSport: CSV header row: {firstLine}")
             Dim dt = ParseEventsCsv(csv, dateFrom, dateTo)
-
-            AppState.Activity?.Invoke($"RevSport: importing {dt.Rows.Count} event rows…")
+            Log($"RevSport: importing {dt.Rows.Count} event rows…")
             Using conn = _db.GetConnection()
                 Using cmd As New SqlCommand("DELETE FROM revsport.Events WHERE DateStart=@s AND DateEnd=@e", conn)
                     cmd.Parameters.AddWithValue("@s", dateFrom)
@@ -114,11 +157,16 @@ Namespace Services
             Dim dateFrom As Date, dateTo As Date
             GetDateRange(job, dateFrom, dateTo)
 
-            AppState.Activity?.Invoke($"RevSport: downloading event attendees {dateFrom:dd/MM/yyyy}–{dateTo:dd/MM/yyyy}…")
-            Dim csv = Await _api.DownloadCsvAsync(BuildEventsUrl(dateFrom, dateTo, "per-member"))
+            Log($"RevSport: downloading event attendees {dateFrom:dd/MM/yyyy}–{dateTo:dd/MM/yyyy}…")
+            Dim csv = Await _api.DownloadCsvAsync(BuildEventsUrl(dateFrom, dateTo, "per-member"), "https://portal.revolutionise.com.au/bsyc/events/reports")
+            Log($"RevSport: CSV received ({csv.Length} chars), parsing…")
+            Dim tmpFile = IO.Path.Combine(IO.Path.GetTempPath(), $"revsport-attendees-{dateFrom:yyyyMMdd}-{dateTo:yyyyMMdd}.csv")
+            IO.File.WriteAllText(tmpFile, csv, System.Text.Encoding.UTF8)
+            Log($"RevSport: CSV saved to {tmpFile}")
+            Dim firstLine = If(csv.IndexOf(vbLf) > 0, csv.Substring(0, csv.IndexOf(vbLf)).Trim(), csv.Substring(0, Math.Min(500, csv.Length)))
+            Log($"RevSport: CSV header row: {firstLine}")
             Dim dt = ParseAttendeesCsv(csv, dateFrom, dateTo)
-
-            AppState.Activity?.Invoke($"RevSport: importing {dt.Rows.Count} attendee rows…")
+            Log($"RevSport: importing {dt.Rows.Count} attendee rows…")
             Using conn = _db.GetConnection()
                 Using cmd As New SqlCommand("DELETE FROM revsport.EventAttendees WHERE DateStart=@s AND DateEnd=@e", conn)
                     cmd.Parameters.AddWithValue("@s", dateFrom)
@@ -153,14 +201,22 @@ Namespace Services
         ' ── URL builders ─────────────────────────────────────────────────────
 
         Private Shared Function BuildMembersUrl(seasonId As Integer) As String
-            Return "https://portal.revolutionise.com.au/bsyc/members/reports/download" & _
-                   "?season_id=" & seasonId & _
-                   "&fields[]=parentBodyID&fields[]=name&fields[]=dateOfBirth&fields[]=gender_word" & _
-                   "&fields[]=creation_time&fields[]=address&fields[]=phoneHome&fields[]=phoneMob" & _
-                   "&fields[]=email&fields[]=payment_status&fields[]=payment_date" & _
-                   "&fields[]=payment_method&fields[]=payment_receipt&fields[]=payment_who" & _
-                   "&fields[]=deceased&fields[]=last_updated" & _
-                   "&paid=2&order=surname&direction=asc&name_format=full&address_format=single&report-format=csv"
+            Return "https://portal.revolutionise.com.au/bsyc/members/reports/download" &
+                   "?template=&date_type=creation_time" &
+                   "&template_creation_time[start]=&template_creation_time[end]=" &
+                   "&template_payment_date[start]=&template_payment_date[end]=" &
+                   "&fields[]=parentBodyID&fields[]=name&fields[]=dateOfBirth&fields[]=gender_word" &
+                   "&fields[]=creation_time&fields[]=address&fields[]=phoneHome&fields[]=phoneMob" &
+                   "&fields[]=email&fields[]=payment_status&fields[]=payment_date" &
+                   "&fields[]=payment_method&fields[]=payment_receipt&fields[]=payment_who" &
+                   "&fields[]=deceased&fields[]=last_updated" &
+                   "&paid=&payment_method=&payment_date[start]=&payment_date[end]=" &
+                   "&dob_filter=&gender=&deceased=&receiveUpdates=&receive_sms=&email_valid=" &
+                   "&creation_time[start]=&creation_time[end]=" &
+                   "&temp_date[start]=&temp_date[end]=" &
+                   "&last_updated[start]=&last_updated[end]=" &
+                   "&season_id=" & seasonId &
+                   "&order=surname&direction=asc&name_format=last_first&address_format=merged&report-format=csv&template_name="
         End Function
 
         Private Shared Function BuildEventsUrl(dateFrom As Date, dateTo As Date, reportType As String) As String
@@ -210,7 +266,9 @@ Namespace Services
                         If f Is Nothing Then Continue While
                         Dim row = dt.NewRow()
                         row("SeasonId") = seasonId
-                        row("ParentBodyId") = If(colMap.TryGetValue("ParentBodyId", idx), GetStr(f, idx), DBNull.Value)
+                        Dim pid = If(colMap.TryGetValue("ParentBodyId", idx), GetStr(f, idx), DBNull.Value)
+                        If pid Is DBNull.Value Then Continue While
+                        row("ParentBodyId") = pid
                         row("FullName") = If(colMap.TryGetValue("FullName", idx), GetStr(f, idx), DBNull.Value)
                         row("DateOfBirth") = If(colMap.TryGetValue("DateOfBirth", idx), GetDate(f, idx), DBNull.Value)
                         row("Gender") = If(colMap.TryGetValue("Gender", idx), GetStr(f, idx), DBNull.Value)

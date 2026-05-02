@@ -8,6 +8,7 @@ Partial Class LogsPanel
     Private Sub InitializeComponent()
         Me.pnlFilter = New System.Windows.Forms.Panel()
         Me.lblCount = New System.Windows.Forms.Label()
+        Me.btnViewLog = New System.Windows.Forms.Button()
         Me.btnRefresh = New System.Windows.Forms.Button()
         Me.cboStatus = New System.Windows.Forms.ComboBox()
         Me.lblStatus = New System.Windows.Forms.Label()
@@ -23,6 +24,7 @@ Partial Class LogsPanel
         ' pnlFilter
         '
         Me.pnlFilter.Controls.Add(Me.lblCount)
+        Me.pnlFilter.Controls.Add(Me.btnViewLog)
         Me.pnlFilter.Controls.Add(Me.btnRefresh)
         Me.pnlFilter.Controls.Add(Me.cboStatus)
         Me.pnlFilter.Controls.Add(Me.lblStatus)
@@ -88,9 +90,16 @@ Partial Class LogsPanel
         Me.btnRefresh.Size = New System.Drawing.Size(70, 26)
         Me.btnRefresh.Text = "Refresh"
         '
+        ' btnViewLog
+        '
+        Me.btnViewLog.Location = New System.Drawing.Point(560, 7)
+        Me.btnViewLog.Name = "btnViewLog"
+        Me.btnViewLog.Size = New System.Drawing.Size(80, 26)
+        Me.btnViewLog.Text = "View Log"
+        '
         ' lblCount
         '
-        Me.lblCount.Location = New System.Drawing.Point(560, 10)
+        Me.lblCount.Location = New System.Drawing.Point(650, 10)
         Me.lblCount.Name = "lblCount"
         Me.lblCount.Size = New System.Drawing.Size(160, 20)
         Me.lblCount.ForeColor = System.Drawing.Color.Gray
@@ -126,6 +135,7 @@ Partial Class LogsPanel
     Friend WithEvents lblStatus As System.Windows.Forms.Label
     Friend WithEvents cboStatus As System.Windows.Forms.ComboBox
     Friend WithEvents btnRefresh As System.Windows.Forms.Button
+    Friend WithEvents btnViewLog As System.Windows.Forms.Button
     Friend WithEvents lblCount As System.Windows.Forms.Label
     Friend WithEvents dgLogs As System.Windows.Forms.DataGridView
 End Class

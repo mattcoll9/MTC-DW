@@ -26,6 +26,8 @@ Partial Class JobEditForm
         Me.dtpNextRun = New System.Windows.Forms.DateTimePicker()
         Me.lblEnabled = New System.Windows.Forms.Label()
         Me.chkEnabled = New System.Windows.Forms.CheckBox()
+        Me.lblVerbose = New System.Windows.Forms.Label()
+        Me.chkVerbose = New System.Windows.Forms.CheckBox()
         Me.pnlBackfill = New System.Windows.Forms.Panel()
         Me.nudChunkDays = New System.Windows.Forms.NumericUpDown()
         Me.dtpBackfillTo = New System.Windows.Forms.DateTimePicker()
@@ -49,8 +51,8 @@ Partial Class JobEditForm
         Me.tlp.ColumnCount = 2
         Me.tlp.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 120.0!))
         Me.tlp.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
-        Me.tlp.RowCount = 9
-        For i As Integer = 0 To 8
+        Me.tlp.RowCount = 10
+        For i As Integer = 0 To 9
             Me.tlp.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 34.0!))
         Next
         Me.tlp.Controls.Add(Me.lblName, 0, 0)
@@ -67,19 +69,21 @@ Partial Class JobEditForm
         Me.tlp.Controls.Add(Me.dtpNextRun, 1, 5)
         Me.tlp.Controls.Add(Me.lblEnabled, 0, 6)
         Me.tlp.Controls.Add(Me.chkEnabled, 1, 6)
-        Me.tlp.Controls.Add(Me.pnlBackfill, 0, 7)
+        Me.tlp.Controls.Add(Me.lblVerbose, 0, 7)
+        Me.tlp.Controls.Add(Me.chkVerbose, 1, 7)
+        Me.tlp.Controls.Add(Me.pnlBackfill, 0, 8)
         Me.tlp.SetColumnSpan(Me.pnlBackfill, 2)
-        Me.tlp.Controls.Add(Me.lblBackfillNote, 0, 8)
+        Me.tlp.Controls.Add(Me.lblBackfillNote, 0, 9)
         Me.tlp.SetColumnSpan(Me.lblBackfillNote, 2)
         Me.tlp.Dock = System.Windows.Forms.DockStyle.Top
         Me.tlp.Name = "tlp"
         Me.tlp.Padding = New System.Windows.Forms.Padding(8)
-        Me.tlp.Size = New System.Drawing.Size(480, 310)
+        Me.tlp.Size = New System.Drawing.Size(480, 344)
         Me.tlp.TabIndex = 0
         '
         ' Standard labels
         '
-        For Each lbl As System.Windows.Forms.Label In {Me.lblName, Me.lblSource, Me.lblEntity, Me.lblSchedule, Me.lblInterval, Me.lblNextRun, Me.lblEnabled}
+        For Each lbl As System.Windows.Forms.Label In {Me.lblName, Me.lblSource, Me.lblEntity, Me.lblSchedule, Me.lblInterval, Me.lblNextRun, Me.lblEnabled, Me.lblVerbose}
             lbl.TextAlign = System.Drawing.ContentAlignment.MiddleRight
             lbl.Dock = System.Windows.Forms.DockStyle.Fill
         Next
@@ -90,6 +94,7 @@ Partial Class JobEditForm
         Me.lblInterval.Text = "Interval (min):"
         Me.lblNextRun.Text = "First Run:"
         Me.lblEnabled.Text = "Enabled:"
+        Me.lblVerbose.Text = "Verbose Log:"
         '
         ' txtName
         '
@@ -98,12 +103,14 @@ Partial Class JobEditForm
         '
         ' cboSource / cboEntity / cboInterval
         '
-        For Each cbo As System.Windows.Forms.ComboBox In {Me.cboSource, Me.cboEntity, Me.cboInterval}
-            cbo.Dock = System.Windows.Forms.DockStyle.Fill
-            cbo.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDown
-        Next
+        Me.cboSource.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.cboSource.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
         Me.cboSource.Name = "cboSource"
+        Me.cboEntity.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.cboEntity.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
         Me.cboEntity.Name = "cboEntity"
+        Me.cboInterval.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.cboInterval.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDown
         Me.cboInterval.Name = "cboInterval"
         '
         ' pnlRadio — Once / Recurring / Backfill radio buttons
@@ -151,6 +158,12 @@ Partial Class JobEditForm
         Me.chkEnabled.Dock = System.Windows.Forms.DockStyle.Fill
         Me.chkEnabled.Name = "chkEnabled"
         Me.chkEnabled.Text = ""
+        '
+        ' chkVerbose
+        '
+        Me.chkVerbose.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.chkVerbose.Name = "chkVerbose"
+        Me.chkVerbose.Text = ""
         '
         ' pnlBackfill — date range + chunk size controls
         '
@@ -242,7 +255,7 @@ Partial Class JobEditForm
         '
         Me.AcceptButton = Me.btnOK
         Me.CancelButton = Me.btnCancel
-        Me.ClientSize = New System.Drawing.Size(480, 400)
+        Me.ClientSize = New System.Drawing.Size(480, 434)
         Me.Controls.Add(Me.pnlButtons)
         Me.Controls.Add(Me.tlp)
         Me.Font = New System.Drawing.Font("Segoe UI", 9)
@@ -281,6 +294,8 @@ Partial Class JobEditForm
     Friend WithEvents dtpNextRun As System.Windows.Forms.DateTimePicker
     Friend WithEvents lblEnabled As System.Windows.Forms.Label
     Friend WithEvents chkEnabled As System.Windows.Forms.CheckBox
+    Friend WithEvents lblVerbose As System.Windows.Forms.Label
+    Friend WithEvents chkVerbose As System.Windows.Forms.CheckBox
     Friend WithEvents pnlBackfill As System.Windows.Forms.Panel
     Friend WithEvents lblBackfillFrom As System.Windows.Forms.Label
     Friend WithEvents dtpBackfillFrom As System.Windows.Forms.DateTimePicker

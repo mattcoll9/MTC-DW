@@ -8,14 +8,14 @@ Public Class JobEditForm
         InitializeComponent()
 
         cboSource.Items.AddRange({"Deputy", "RevSport"})
-        cboEntity.Items.AddRange({"Timesheets", "Rosters", "Employees", "OperationalUnits", "Company", "Departments", "Members", "Events", "EventAttendees"})
         cboInterval.Items.AddRange({"2", "5", "15", "60", "240", "720", "1440"})
 
         If existingJob IsNot Nothing Then
             txtName.Text = existingJob.JobName
-            cboSource.SelectedItem = existingJob.SourceType
+            cboSource.SelectedItem = existingJob.SourceType   ' fires PopulateEntities
             cboEntity.SelectedItem = existingJob.EntityType
             chkEnabled.Checked = existingJob.IsEnabled
+            chkVerbose.Checked = existingJob.VerboseEnabled
 
             Select Case existingJob.ScheduleType
                 Case "Recurring"
@@ -35,8 +35,7 @@ Public Class JobEditForm
             Result = existingJob
         Else
             rbRecurring.Checked = True
-            cboSource.SelectedIndex = 0
-            cboEntity.SelectedIndex = 0
+            cboSource.SelectedIndex = 0   ' fires PopulateEntities; entity list already populated
             cboInterval.SelectedItem = "60"
             chkEnabled.Checked = True
             dtpNextRun.Value = DateTime.Now.AddMinutes(5)
@@ -54,14 +53,29 @@ Public Class JobEditForm
         UpdateVisibility()
     End Sub
 
+    Private Sub cboSource_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cboSource.SelectedIndexChanged
+        PopulateEntities()
+    End Sub
+
     Private Sub cboEntity_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cboEntity.SelectedIndexChanged
         UpdateVisibility()
+    End Sub
+
+    Private Sub PopulateEntities()
+        Dim source = CStr(If(cboSource.SelectedItem, ""))
+        cboEntity.Items.Clear()
+        Select Case source
+            Case "Deputy"
+                cboEntity.Items.AddRange(New String() {"Timesheets", "Rosters", "Employees", "OperationalUnits", "Company", "Departments"})
+            Case "RevSport"
+                cboEntity.Items.AddRange(New String() {"Members", "Events", "EventAttendees"})
+        End Select
+        If cboEntity.Items.Count > 0 Then cboEntity.SelectedIndex = 0
     End Sub
 
     Private Sub UpdateVisibility()
         Dim isRecurring = rbRecurring.Checked
         Dim isBackfill = rbBackfill.Checked
-        Dim isTimesheets = CStr(cboEntity.SelectedItem) = "Timesheets"
 
         lblInterval.Visible = isRecurring OrElse isBackfill
         cboInterval.Visible = isRecurring OrElse isBackfill
@@ -93,6 +107,7 @@ Public Class JobEditForm
         Result.SourceType = CStr(cboSource.SelectedItem)
         Result.EntityType = CStr(cboEntity.SelectedItem)
         Result.IsEnabled = chkEnabled.Checked
+        Result.VerboseEnabled = chkVerbose.Checked
         Result.NextRunTime = dtpNextRun.Value
 
         If rbRecurring.Checked Then

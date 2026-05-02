@@ -15,6 +15,7 @@ Namespace Models
         Public Property SyncToDate As Date?
         Public Property ChunkDays As Integer?     ' days per pull (default 30)
         Public Property SyncCursor As Date?       ' auto-advanced after each chunk
+        Public Property VerboseEnabled As Boolean
 
         Public ReadOnly Property IntervalDisplay As String
             Get

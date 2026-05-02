@@ -6,9 +6,18 @@ Public Class JobsPanel
     Private _jobs As List(Of JobDefinition)
     Private _runCts As CancellationTokenSource
     Private _btnStop As ToolStripButton
+    Private _cmsEdit As ToolStripItem
+    Private _cmsDelete As ToolStripItem
+    Private _cmsRun As ToolStripItem
 
     Public Sub New()
         InitializeComponent()
+
+        For Each dgv As DataGridView In {dgJobs, dgHistory}
+            dgv.ClipboardCopyMode = DataGridViewClipboardCopyMode.EnableWithAutoHeaderText
+            dgv.AllowUserToOrderColumns = True
+            dgv.MultiSelect = True
+        Next
 
         _btnStop = New ToolStripButton("Stop") With {
             .Name = "btnStop",
@@ -20,6 +29,19 @@ Public Class JobsPanel
         tsJobs.Items.Add(sepStop)
         tsJobs.Items.Add(_btnStop)
         AddHandler _btnStop.Click, AddressOf btnStop_Click
+
+        Dim cms As New ContextMenuStrip()
+        Dim cmsAdd As ToolStripItem = cms.Items.Add("Add Job")
+        _cmsEdit = cms.Items.Add("Edit Job")
+        _cmsDelete = cms.Items.Add("Delete Job")
+        cms.Items.Add(New ToolStripSeparator())
+        _cmsRun = cms.Items.Add("Run Now")
+        AddHandler cmsAdd.Click, AddressOf btnAdd_Click
+        AddHandler _cmsEdit.Click, AddressOf btnEdit_Click
+        AddHandler _cmsDelete.Click, AddressOf btnDelete_Click
+        AddHandler _cmsRun.Click, AddressOf btnRunNow_Click
+        AddHandler cms.Opening, AddressOf JobsContextMenu_Opening
+        dgJobs.ContextMenuStrip = cms
     End Sub
 
     Public Sub RefreshJobs()
@@ -48,14 +70,23 @@ Public Class JobsPanel
         Try
             Dim selectedId = SelectedJobId()
             Dim hist = AppState.Db.GetJobHistory(selectedId, 50)
-            dgHistory.DataSource = hist.Select(Function(h) New With {
-                .Started = h.StartedAt.ToString("dd/MM HH:mm:ss"),
-                .Duration = h.Duration,
-                .Status = h.Status,
-                .Records = If(h.RecordsAffected.HasValue, h.RecordsAffected.Value.ToString("N0"), "—"),
-                .Error = If(String.IsNullOrEmpty(h.ErrorMessage), "", h.ErrorMessage.Substring(0, Math.Min(120, h.ErrorMessage.Length)))
-            }).ToList()
+            Dim dt As New DataTable()
+            dt.Columns.Add("Started", GetType(DateTime))
+            dt.Columns.Add("Duration", GetType(String))
+            dt.Columns.Add("Status", GetType(String))
+            dt.Columns.Add("Records", GetType(String))
+            dt.Columns.Add("Error", GetType(String))
+            For Each h In hist
+                dt.Rows.Add(h.StartedAt, h.Duration, h.Status,
+                            If(h.RecordsAffected.HasValue, h.RecordsAffected.Value.ToString("N0"), "—"),
+                            If(String.IsNullOrEmpty(h.ErrorMessage), "", h.ErrorMessage.Substring(0, Math.Min(120, h.ErrorMessage.Length))))
+            Next
+            dgHistory.DataSource = dt
             GridColumnStore.Restore("JobsHistory", dgHistory)
+            If dgHistory.Columns.Contains("Started") Then
+                dgHistory.Columns("Started").DefaultCellStyle.Format = "dd/MM HH:mm:ss"
+                dgHistory.Sort(dgHistory.Columns("Started"), System.ComponentModel.ListSortDirection.Descending)
+            End If
             ColourRows(dgHistory)
         Catch
         End Try
@@ -148,6 +179,13 @@ Public Class JobsPanel
 
     Private Sub dgJobs_SelectionChanged(sender As Object, e As EventArgs) Handles dgJobs.SelectionChanged
         RefreshHistory()
+    End Sub
+
+    Private Sub JobsContextMenu_Opening(sender As Object, e As System.ComponentModel.CancelEventArgs)
+        Dim hasSelection = SelectedJob() IsNot Nothing
+        _cmsEdit.Enabled = hasSelection
+        _cmsDelete.Enabled = hasSelection
+        _cmsRun.Enabled = hasSelection
     End Sub
 
     Private Sub dgJobs_ColumnWidthChanged(sender As Object, e As DataGridViewColumnEventArgs) Handles dgJobs.ColumnWidthChanged

@@ -7,34 +7,27 @@ Partial Class SettingsPanel
     <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
         Me.grpDB = New System.Windows.Forms.GroupBox()
+        Me.btnImportConn = New System.Windows.Forms.Button()
+        Me.btnExportConn = New System.Windows.Forms.Button()
         Me.btnSaveConn = New System.Windows.Forms.Button()
         Me.btnTestConn = New System.Windows.Forms.Button()
         Me.txtConnStr = New System.Windows.Forms.TextBox()
         Me.lblConnStr = New System.Windows.Forms.Label()
-        Me.grpAPI = New System.Windows.Forms.GroupBox()
-        Me.btnSaveConfig = New System.Windows.Forms.Button()
-        Me.btnDeleteConfig = New System.Windows.Forms.Button()
-        Me.dgConfig = New System.Windows.Forms.DataGridView()
-        Me.pnlNewEntry = New System.Windows.Forms.Panel()
-        Me.txtNewValue = New System.Windows.Forms.TextBox()
-        Me.txtNewKey = New System.Windows.Forms.TextBox()
-        Me.lblNewValue = New System.Windows.Forms.Label()
-        Me.lblNewKey = New System.Windows.Forms.Label()
+        Me.lblConfigHint = New System.Windows.Forms.Label()
         Me.grpDB.SuspendLayout()
-        Me.grpAPI.SuspendLayout()
-        CType(Me.dgConfig, System.ComponentModel.ISupportInitialize).BeginInit()
-        Me.pnlNewEntry.SuspendLayout()
         Me.SuspendLayout()
         '
         ' grpDB
         '
+        Me.grpDB.Controls.Add(Me.btnImportConn)
+        Me.grpDB.Controls.Add(Me.btnExportConn)
         Me.grpDB.Controls.Add(Me.btnSaveConn)
         Me.grpDB.Controls.Add(Me.btnTestConn)
         Me.grpDB.Controls.Add(Me.txtConnStr)
         Me.grpDB.Controls.Add(Me.lblConnStr)
         Me.grpDB.Dock = System.Windows.Forms.DockStyle.Top
         Me.grpDB.Name = "grpDB"
-        Me.grpDB.Size = New System.Drawing.Size(900, 80)
+        Me.grpDB.Size = New System.Drawing.Size(900, 112)
         Me.grpDB.Text = "SQL Server Connection"
         Me.grpDB.Padding = New System.Windows.Forms.Padding(8)
         '
@@ -67,93 +60,39 @@ Partial Class SettingsPanel
         Me.btnSaveConn.Size = New System.Drawing.Size(70, 26)
         Me.btnSaveConn.Text = "Save"
         '
-        ' grpAPI
+        ' btnExportConn
         '
-        Me.grpAPI.Controls.Add(Me.dgConfig)
-        Me.grpAPI.Controls.Add(Me.pnlNewEntry)
-        Me.grpAPI.Controls.Add(Me.btnDeleteConfig)
-        Me.grpAPI.Controls.Add(Me.btnSaveConfig)
-        Me.grpAPI.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.grpAPI.Name = "grpAPI"
-        Me.grpAPI.Text = "API Configuration (stored in database)"
-        Me.grpAPI.Padding = New System.Windows.Forms.Padding(8)
+        Me.btnExportConn.Location = New System.Drawing.Point(122, 62)
+        Me.btnExportConn.Name = "btnExportConn"
+        Me.btnExportConn.Size = New System.Drawing.Size(90, 26)
+        Me.btnExportConn.Text = "Export…"
         '
-        ' dgConfig
+        ' btnImportConn
         '
-        Me.dgConfig.AllowUserToAddRows = False
-        Me.dgConfig.AllowUserToDeleteRows = False
-        Me.dgConfig.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill
-        Me.dgConfig.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.dgConfig.Name = "dgConfig"
-        Me.dgConfig.ReadOnly = True
-        Me.dgConfig.RowHeadersVisible = False
-        Me.dgConfig.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect
+        Me.btnImportConn.Location = New System.Drawing.Point(218, 62)
+        Me.btnImportConn.Name = "btnImportConn"
+        Me.btnImportConn.Size = New System.Drawing.Size(90, 26)
+        Me.btnImportConn.Text = "Import…"
         '
-        ' pnlNewEntry
+        ' lblConfigHint
         '
-        Me.pnlNewEntry.Controls.Add(Me.txtNewValue)
-        Me.pnlNewEntry.Controls.Add(Me.txtNewKey)
-        Me.pnlNewEntry.Controls.Add(Me.lblNewValue)
-        Me.pnlNewEntry.Controls.Add(Me.lblNewKey)
-        Me.pnlNewEntry.Controls.Add(Me.btnSaveConfig)
-        Me.pnlNewEntry.Dock = System.Windows.Forms.DockStyle.Bottom
-        Me.pnlNewEntry.Name = "pnlNewEntry"
-        Me.pnlNewEntry.Size = New System.Drawing.Size(900, 44)
-        '
-        ' lblNewKey
-        '
-        Me.lblNewKey.Location = New System.Drawing.Point(4, 12)
-        Me.lblNewKey.Name = "lblNewKey"
-        Me.lblNewKey.Size = New System.Drawing.Size(38, 20)
-        Me.lblNewKey.Text = "Key:"
-        Me.lblNewKey.TextAlign = System.Drawing.ContentAlignment.MiddleRight
-        '
-        ' txtNewKey
-        '
-        Me.txtNewKey.Location = New System.Drawing.Point(46, 10)
-        Me.txtNewKey.Name = "txtNewKey"
-        Me.txtNewKey.Size = New System.Drawing.Size(200, 23)
-        '
-        ' lblNewValue
-        '
-        Me.lblNewValue.Location = New System.Drawing.Point(252, 12)
-        Me.lblNewValue.Name = "lblNewValue"
-        Me.lblNewValue.Size = New System.Drawing.Size(44, 20)
-        Me.lblNewValue.Text = "Value:"
-        Me.lblNewValue.TextAlign = System.Drawing.ContentAlignment.MiddleRight
-        '
-        ' txtNewValue
-        '
-        Me.txtNewValue.Location = New System.Drawing.Point(300, 10)
-        Me.txtNewValue.Name = "txtNewValue"
-        Me.txtNewValue.Size = New System.Drawing.Size(400, 23)
-        '
-        ' btnSaveConfig
-        '
-        Me.btnSaveConfig.Location = New System.Drawing.Point(708, 9)
-        Me.btnSaveConfig.Name = "btnSaveConfig"
-        Me.btnSaveConfig.Size = New System.Drawing.Size(80, 26)
-        Me.btnSaveConfig.Text = "Save"
-        '
-        ' btnDeleteConfig
-        '
-        Me.btnDeleteConfig.Location = New System.Drawing.Point(794, 9)
-        Me.btnDeleteConfig.Name = "btnDeleteConfig"
-        Me.btnDeleteConfig.Size = New System.Drawing.Size(80, 26)
-        Me.btnDeleteConfig.Text = "Help"
+        Me.lblConfigHint.Dock = System.Windows.Forms.DockStyle.Top
+        Me.lblConfigHint.ForeColor = System.Drawing.Color.Gray
+        Me.lblConfigHint.Font = New System.Drawing.Font("Microsoft Sans Serif", 8.25!, System.Drawing.FontStyle.Italic)
+        Me.lblConfigHint.Name = "lblConfigHint"
+        Me.lblConfigHint.Size = New System.Drawing.Size(900, 40)
+        Me.lblConfigHint.Text = "Source-specific settings are configured via the Configure button on each source panel."
+        Me.lblConfigHint.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        Me.lblConfigHint.Padding = New System.Windows.Forms.Padding(8, 0, 0, 0)
         '
         ' SettingsPanel
         '
-        Me.Controls.Add(Me.grpAPI)
+        Me.Controls.Add(Me.lblConfigHint)
         Me.Controls.Add(Me.grpDB)
         Me.Name = "SettingsPanel"
         Me.Size = New System.Drawing.Size(900, 600)
         Me.grpDB.ResumeLayout(False)
         Me.grpDB.PerformLayout()
-        Me.grpAPI.ResumeLayout(False)
-        CType(Me.dgConfig, System.ComponentModel.ISupportInitialize).EndInit()
-        Me.pnlNewEntry.ResumeLayout(False)
-        Me.pnlNewEntry.PerformLayout()
         Me.ResumeLayout(False)
     End Sub
 
@@ -162,13 +101,7 @@ Partial Class SettingsPanel
     Friend WithEvents txtConnStr As System.Windows.Forms.TextBox
     Friend WithEvents btnTestConn As System.Windows.Forms.Button
     Friend WithEvents btnSaveConn As System.Windows.Forms.Button
-    Friend WithEvents grpAPI As System.Windows.Forms.GroupBox
-    Friend WithEvents dgConfig As System.Windows.Forms.DataGridView
-    Friend WithEvents pnlNewEntry As System.Windows.Forms.Panel
-    Friend WithEvents lblNewKey As System.Windows.Forms.Label
-    Friend WithEvents txtNewKey As System.Windows.Forms.TextBox
-    Friend WithEvents lblNewValue As System.Windows.Forms.Label
-    Friend WithEvents txtNewValue As System.Windows.Forms.TextBox
-    Friend WithEvents btnSaveConfig As System.Windows.Forms.Button
-    Friend WithEvents btnDeleteConfig As System.Windows.Forms.Button
+    Friend WithEvents btnExportConn As System.Windows.Forms.Button
+    Friend WithEvents btnImportConn As System.Windows.Forms.Button
+    Friend WithEvents lblConfigHint As System.Windows.Forms.Label
 End Class
